@@ -13,9 +13,11 @@ COPY --chown=node:node n8n-nodes-master-nodes-ERPSAPB1/dist/nodes/ERPSAPB1 /opt/
 COPY --chown=node:node n8n-nodes-master-nodes-ERPSAPB1/dist/credentials/ERPSAPB1Api.credentials.js /opt/n8n-custom/credentials/ERPSAPB1Api.credentials.js
 
 COPY --chown=node:node n8n-nodes-master-pagcorp/dist/nodes/PagCorp /opt/n8n-custom/nodes/PagCorp
+COPY --chown=node:node n8n-nodes-master-pagcorp/nodes/PagCorp/pagcorp.png /opt/n8n-custom/nodes/PagCorp/pagcorp.png
 COPY --chown=node:node n8n-nodes-master-pagcorp/dist/credentials/PagCorpApi.credentials.js /opt/n8n-custom/credentials/PagCorpApi.credentials.js
 
 COPY --chown=node:node n8n-nodes-be-compliance/dist/nodes/BeCompliance /opt/n8n-custom/nodes/BeCompliance
+COPY --chown=node:node n8n-nodes-be-compliance/nodes/BeCompliance/becompliance.png /opt/n8n-custom/nodes/BeCompliance/becompliance.png
 COPY --chown=node:node n8n-nodes-be-compliance/dist/credentials/BeComplianceApi.credentials.js /opt/n8n-custom/credentials/BeComplianceApi.credentials.js
 
 # COPY --chown=node:node n8n-nodes-sap-hana-data/dist/nodes/SapHanaData /opt/n8n-custom/nodes/SapHanaData

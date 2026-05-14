@@ -11,7 +11,7 @@ export class BeCompliance implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Be Compliance',
 		name: 'beCompliance',
-		icon: 'fa:shield-alt',
+		icon: 'file:becompliance.png',
 		group: ['transform'],
 		version: 1,
 		description: 'Interact with BeCompliance API (PF and PJ)',
