@@ -1,18 +1,16 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "es2018",
-    "lib": ["es2018"],
+    "target": "ES2019",
+    "module": "CommonJS",
     "declaration": true,
-    "removeComments": true,
-    "strict": true,
     "outDir": "dist",
+    "rootDir": ".",
+    "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "*": ["node_modules/*"]
-    }
+    "skipLibCheck": true
   },
-  "include": ["nodes/**/*.{ts,js}", "credentials/**/*.{ts,js}"]
+  "include": [
+    "nodes/**/*.ts",
+    "credentials/**/*.ts"
+  ]
 }

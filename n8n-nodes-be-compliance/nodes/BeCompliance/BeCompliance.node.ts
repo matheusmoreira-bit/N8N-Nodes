@@ -82,7 +82,7 @@ export class BeCompliance implements INodeType {
 				password,
 			});
 			token = loginResponse.data.access_token;
-		} catch (error) {
+		} catch (error: any) {
 			throw new Error(`Falha na autenticação BeCompliance: ${error.message}`);
 		}
 
@@ -103,7 +103,7 @@ export class BeCompliance implements INodeType {
 						}
 					}
 				}
-			} catch (error) {
+			} catch (error: any) {
 				if (this.continueOnFail()) {
 					returnData.push({ json: { error: error.message } });
 					continue;
