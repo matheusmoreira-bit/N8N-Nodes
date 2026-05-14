@@ -9,15 +9,19 @@ function Build-Node($path, $name) {
     Write-Host "`n--- building $name ---" -ForegroundColor Cyan
     Set-Location $path
 
-    if (-not (Test-Path "node_modules")) {
-        Write-Host "node_modules nao encontrado em $name. Executando npm install..." -ForegroundColor Yellow
+    # Tenta rodar o build. Se falhar, tenta instalar dependencias e rodar de novo.
+    Write-Host "Executando npm run build para $name..." -ForegroundColor Gray
+    $null = npm run build
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Build inicial falhou. Tentando rodar npm install para corrigir dependencias..." -ForegroundColor Yellow
         npm install
         if ($LASTEXITCODE -ne 0) { throw "Falha no npm install para $name" }
+        
+        Write-Host "Tentando build novamente para $name..." -ForegroundColor Gray
+        npm run build
+        if ($LASTEXITCODE -ne 0) { throw "Falha no build para $name apos npm install" }
     }
-
-    Write-Host "Executando npm run build para $name..." -ForegroundColor Gray
-    npm run build
-    if ($LASTEXITCODE -ne 0) { throw "Falha no build para $name" }
 }
 
 # Pega o diretorio onde o script esta localizado
