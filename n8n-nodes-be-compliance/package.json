@@ -1,0 +1,28 @@
+{
+  "name": "n8n-nodes-be-compliance",
+  "version": "1.0.0",
+  "description": "n8n node for BeCompliance API",
+  "main": "dist/nodes/BeCompliance/BeCompliance.node.js",
+  "types": "dist/nodes/BeCompliance/BeCompliance.node.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "Matheus Moreira",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.8.2",
+    "n8n-workflow": "^1.45.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "typescript": "^5.0.0"
+  },
+  "n8n": {
+    "nodes": [
+      "dist/nodes/BeCompliance/BeCompliance.node.js"
+    ],
+    "credentials": [
+      "dist/credentials/BeComplianceApi.credentials.js"
+    ]
+  }
+}

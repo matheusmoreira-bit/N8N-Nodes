@@ -36,11 +36,13 @@ function Build-Node($path, $name) {
 $RootDir = $PSScriptRoot
 $SapDir = Join-Path $RootDir "n8n-nodes-master-nodes-ERPSAPB1"
 $PagCorpDir = Join-Path $RootDir "n8n-nodes-master-pagcorp"
+$BeComplianceDir = Join-Path $RootDir "n8n-nodes-be-compliance"
 $SapHanaDir = Join-Path $RootDir "n8n-nodes-sap-hana-data"
 
 try {
     Build-Node $SapDir "SAP B1"
     Build-Node $PagCorpDir "PagCorp"
+    Build-Node $BeComplianceDir "Be Compliance"
     # Build-Node $SapHanaDir "SAP HANA Data" # Ignorado a pedido do usuario
 
     Write-Host "`n--- Starting n8n with all custom nodes ---" -ForegroundColor Green
