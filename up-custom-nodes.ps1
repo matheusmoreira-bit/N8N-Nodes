@@ -2,12 +2,20 @@ $ErrorActionPreference = "Stop"
 
 function Build-Node($path, $name) {
     if (-not (Test-Path $path)) {
-        Write-Error "Erro: Diretorio '$path' nao encontrado para o no $name."
-        return
+        Write-Host "[DEBUG] Procurando por '$path'. Caminho completo: $(Resolve-Path $path -ErrorAction Silently)" -ForegroundColor Gray
+        throw "Erro: Diretorio '$path' nao encontrado para o no $name."
     }
 
     Write-Host "`n--- building $name ---" -ForegroundColor Cyan
     Set-Location $path
+    
+    # DEBUG: Mostrar onde estamos e o que tem na pasta
+    Write-Host "[DEBUG] No diretorio: $((Get-Location).Path)" -ForegroundColor Gray
+    if (-not (Test-Path "package.json")) {
+        Write-Host "[DEBUG] package.json NAO ENCONTRADO em $((Get-Location).Path)" -ForegroundColor Red
+        Write-Host "[DEBUG] Arquivos na pasta:" -ForegroundColor Gray
+        Get-ChildItem | Select-Object Name | Out-String | Write-Host
+    }
 
     # Tenta rodar o build. Se falhar, tenta instalar dependencias e rodar de novo.
     Write-Host "Executando npm run build para $name..." -ForegroundColor Gray
