@@ -1,0 +1,21 @@
+FROM docker.n8n.io/n8nio/n8n:2.14.2
+
+USER root
+
+RUN mkdir -p /opt/n8n-custom/nodes /opt/n8n-custom/credentials \
+ && chown -R node:node /opt/n8n-custom
+
+# Required runtime dependency for n8n-nodes-sap-hana-data
+RUN npm install --prefix /opt/n8n-custom hdb@^0.19.12 \
+ && chown -R node:node /opt/n8n-custom
+
+COPY --chown=node:node n8n-nodes-master-nodes-ERPSAPB1/dist/nodes/ERPSAPB1 /opt/n8n-custom/nodes/ERPSAPB1
+COPY --chown=node:node n8n-nodes-master-nodes-ERPSAPB1/dist/credentials/ERPSAPB1Api.credentials.js /opt/n8n-custom/credentials/ERPSAPB1Api.credentials.js
+
+COPY --chown=node:node n8n-nodes-master-pagcorp/dist/nodes/PagCorp /opt/n8n-custom/nodes/PagCorp
+COPY --chown=node:node n8n-nodes-master-pagcorp/dist/credentials/PagCorpApi.credentials.js /opt/n8n-custom/credentials/PagCorpApi.credentials.js
+
+COPY --chown=node:node n8n-nodes-sap-hana-data/dist/nodes/SapHanaData /opt/n8n-custom/nodes/SapHanaData
+COPY --chown=node:node n8n-nodes-sap-hana-data/dist/credentials/SapHanaDataApi.credentials.js /opt/n8n-custom/credentials/SapHanaDataApi.credentials.js
+
+USER node

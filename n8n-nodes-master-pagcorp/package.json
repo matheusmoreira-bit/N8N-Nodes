@@ -1,0 +1,28 @@
+{
+  "name": "n8n-nodes-master-pagcorp",
+  "version": "1.0.0",
+  "description": "Custom n8n node for PagCorp API",
+  "main": "dist/nodes/PagCorp/PagCorp.node.js",
+  "types": "dist/nodes/PagCorp/PagCorp.node.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "Seu Nome",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.8.2",
+    "n8n-workflow": "^1.45.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "typescript": "^5.0.0"
+  },
+  "n8n": {
+    "nodes": [
+      "dist/nodes/PagCorp/PagCorp.node.js"
+    ],
+    "credentials": [
+      "dist/credentials/PagCorpApi.credentials.js"
+    ]
+  }
+}

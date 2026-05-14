@@ -1,0 +1,202 @@
+import { SupplierProperties } from '../../Interfaces';
+
+export const supplierCreateDescription: SupplierProperties = [
+    {
+        displayName: 'CardCode',
+        name: 'cardCode',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+        description: 'Opcional. Se vazio, o node gera automaticamente no padrão F000001.',
+    },
+    {
+        displayName: 'Nome do Fornecedor',
+        name: 'cardName',
+        type: 'string',
+        default: '',
+        required: true,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+    },
+    {
+        displayName: 'CNPJ',
+        name: 'cnpj',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+        description: 'Opcional. Se informado, será replicado para FederalTaxID e U_FGR_TAXID0.',
+    },
+    {
+        displayName: 'Nome Base do Endereço',
+        name: 'addressName',
+        type: 'string',
+        default: 'PRINCIPAL',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+        description: 'O node replica os dados para Entrega e Cobrança automaticamente.',
+    },
+    {
+        displayName: 'Rua',
+        name: 'street',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+    },
+    {
+        displayName: 'Número',
+        name: 'streetNo',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+    },
+    {
+        displayName: 'Bairro',
+        name: 'block',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+    },
+    {
+        displayName: 'Complemento',
+        name: 'buildingFloorRoom',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+    },
+    {
+        displayName: 'Cidade',
+        name: 'city',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+    },
+    {
+        displayName: 'CEP',
+        name: 'zipCode',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+    },
+    {
+        displayName: 'Estado',
+        name: 'state',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+    },
+    {
+        displayName: 'País',
+        name: 'country',
+        type: 'string',
+        default: 'BR',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+    },
+    {
+        displayName: 'Campos Dinâmicos',
+        name: 'dynamicFields',
+        type: 'fixedCollection',
+        placeholder: 'Adicionar campo',
+        default: {},
+        required: false,
+        typeOptions: {
+            multipleValues: true,
+        },
+        options: [
+            {
+                name: 'dynamicFields',
+                displayName: 'Campo',
+                values: [
+                    {
+                        displayName: 'Nome do Campo',
+                        name: 'name',
+                        type: 'string',
+                        default: '',
+                        required: true,
+                    },
+                    {
+                        displayName: 'Valor',
+                        name: 'value',
+                        type: 'string',
+                        default: '',
+                        required: true,
+                    },
+                ],
+            },
+        ],
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+    },
+];
