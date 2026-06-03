@@ -1,0 +1,28 @@
+{
+  "name": "n8n-nodes-omie",
+  "version": "1.0.0",
+  "description": "Custom n8n node for Omie API",
+  "main": "dist/nodes/Omie/Omie.node.js",
+  "types": "dist/nodes/Omie/Omie.node.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "Seu Nome",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.8.2",
+    "n8n-workflow": "^1.45.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "typescript": "^5.0.0"
+  },
+  "n8n": {
+    "nodes": [
+      "dist/nodes/Omie/Omie.node.js"
+    ],
+    "credentials": [
+      "dist/credentials/OmieApi.credentials.js"
+    ]
+  }
+}
