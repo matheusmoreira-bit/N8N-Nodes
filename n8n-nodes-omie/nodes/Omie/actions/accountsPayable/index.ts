@@ -4,6 +4,7 @@ import { descriptions as listDescription } from './list/description';
 import { descriptions as settleDescription } from './settle/description';
 import { execute as listExecute } from './list/execute';
 import { execute as settleExecute } from './settle/execute';
+import { addResourceDisplayOptions } from '../displayOptions';
 
 export const descriptions: INodeProperties[] = [
     {
@@ -22,9 +23,14 @@ export const descriptions: INodeProperties[] = [
         ],
         default: 'list',
         description: 'Operação a ser executada em Contas a Pagar',
+        displayOptions: {
+            show: {
+                resource: ['accountsPayable'],
+            },
+        },
     },
-    ...listDescription,
-    ...settleDescription,
+    ...addResourceDisplayOptions(listDescription, 'accountsPayable'),
+    ...addResourceDisplayOptions(settleDescription, 'accountsPayable'),
 ];
 
 export { listExecute, settleExecute };

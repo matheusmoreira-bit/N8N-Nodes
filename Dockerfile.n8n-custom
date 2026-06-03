@@ -5,12 +5,13 @@ USER root
 RUN mkdir -p /opt/n8n-custom/nodes /opt/n8n-custom/credentials \
  && chown -R node:node /opt/n8n-custom
 
-# Required runtime dependency for n8n-nodes-sap-hana-data
-RUN npm install --prefix /opt/n8n-custom hdb@^0.19.12 \
+# Required runtime dependencies for custom nodes
+RUN npm install --prefix /opt/n8n-custom hdb@^0.19.12 axios@^1.8.2 form-data@^4.0.1 ssh2-sftp-client@^11.0.0 csv-parse@^5.6.0 smb2@^0.2.11 \
  && chown -R node:node /opt/n8n-custom
 
 COPY --chown=node:node n8n-nodes-master-nodes-ERPSAPB1/dist/nodes/ERPSAPB1 /opt/n8n-custom/nodes/ERPSAPB1
 COPY --chown=node:node n8n-nodes-master-nodes-ERPSAPB1/dist/credentials/ERPSAPB1Api.credentials.js /opt/n8n-custom/credentials/ERPSAPB1Api.credentials.js
+COPY --chown=node:node n8n-nodes-master-nodes-ERPSAPB1/dist/credentials/ERPSAPB1ServerFiles.credentials.js /opt/n8n-custom/credentials/ERPSAPB1ServerFiles.credentials.js
 
 COPY --chown=node:node n8n-nodes-master-pagcorp/dist/nodes/PagCorp /opt/n8n-custom/nodes/PagCorp
 COPY --chown=node:node n8n-nodes-master-pagcorp/nodes/PagCorp/pagcorp.png /opt/n8n-custom/nodes/PagCorp/pagcorp.png
@@ -21,8 +22,16 @@ COPY --chown=node:node n8n-nodes-be-compliance/nodes/BeCompliance/becompliance.p
 COPY --chown=node:node n8n-nodes-be-compliance/dist/credentials/BeComplianceApi.credentials.js /opt/n8n-custom/credentials/BeComplianceApi.credentials.js
 
 COPY --chown=node:node n8n-nodes-omie/dist/nodes/Omie /opt/n8n-custom/nodes/Omie
-COPY --chown=node:node n8n-nodes-omie/omie.svg /opt/n8n-custom/nodes/Omie/omie.svg
-COPY --chown=node:node n8n-nodes-omie/dist/credentials/OmieApi.credentials.js /opt/n8n-custom/credentials/OmieApi.credentials.js
+COPY --chown=node:node n8n-nodes-omie/omie-logo.png /opt/n8n-custom/nodes/Omie/omie-logo.png
+COPY --chown=node:node n8n-nodes-omie/dist/nodes/Omie/credentials/OmieApi.credentials.js /opt/n8n-custom/credentials/OmieApi.credentials.js
+
+COPY --chown=node:node n8n-nodes-accesstage/dist/nodes/Accesstage /opt/n8n-custom/nodes/Accesstage
+COPY --chown=node:node n8n-nodes-accesstage/accesstage-logo.png /opt/n8n-custom/nodes/Accesstage/accesstage-logo.png
+COPY --chown=node:node n8n-nodes-accesstage/dist/nodes/Accesstage/credentials/AccesstageApi.credentials.js /opt/n8n-custom/credentials/AccesstageApi.credentials.js
+
+COPY --chown=node:node n8n-nodes-uber/dist/nodes/Uber /opt/n8n-custom/nodes/Uber
+COPY --chown=node:node n8n-nodes-uber/uber-logo.png /opt/n8n-custom/nodes/Uber/uber-logo.png
+COPY --chown=node:node n8n-nodes-uber/dist/nodes/Uber/credentials/UberSftpApi.credentials.js /opt/n8n-custom/credentials/UberSftpApi.credentials.js
 
 # COPY --chown=node:node n8n-nodes-sap-hana-data/dist/nodes/SapHanaData /opt/n8n-custom/nodes/SapHanaData
 # COPY --chown=node:node n8n-nodes-sap-hana-data/dist/credentials/SapHanaDataApi.credentials.js /opt/n8n-custom/credentials/SapHanaDataApi.credentials.js

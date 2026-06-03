@@ -38,9 +38,18 @@ const accountsPayable = __importStar(require("./accountsPayable"));
 const suppliers = __importStar(require("./suppliers"));
 const items = __importStar(require("./items"));
 const payments = __importStar(require("./payments"));
+const cnabSicoob = __importStar(require("./cnabSicoob"));
 async function router(api) {
     const inputItems = this.getInputData();
     const operationResult = [];
+    const resource = this.getNodeParameter('resource', 0);
+    const operation = this.getNodeParameter('operation', 0);
+    if (resource === 'cnabSicoob') {
+        if (operation === 'generatePaymentRemittance') {
+            return cnabSicoob.generatePaymentRemittanceExecute.call(this, api);
+        }
+        throw new Error(`Operação '${operation}' não suportada para CNAB 240 Sicoob.`);
+    }
     for (let i = 0; i < inputItems.length; i++) {
         const resource = this.getNodeParameter('resource', i);
         const operation = this.getNodeParameter('operation', i);

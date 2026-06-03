@@ -1,4 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <rect width="256" height="256" rx="32" fill="#0b54b6" />
-  <text x="128" y="146" font-family="Arial, Helvetica, sans-serif" font-size="96" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">omie</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Omie">
+  <rect width="600" height="600" fill="#10cdd6"/>
+  <g fill="#061b2a">
+    <circle cx="133" cy="315" r="54"/>
+    <path d="M112 267c-20 8-33 26-33 48 0 21 13 40 33 48V267z"/>
+    <path d="M113 275c0-8 8-13 15-9l39 24 39 23c7 5 7 15 0 19l-39 23-39 24c-7 4-15-1-15-9v-95z" fill="#10cdd6"/>
+    <path d="M203 270c0-4 4-7 8-5l24 12c11-9 25-14 42-14 19 0 34 6 45 18 12-12 30-18 51-18 37 0 60 24 60 65v36c0 4-3 7-7 7h-32c-4 0-7-3-7-7v-34c0-26-11-38-32-38-19 0-31 13-31 38v34c0 4-3 7-7 7h-32c-4 0-7-3-7-7v-34c0-26-11-38-31-38-20 0-32 13-32 38v34c0 4-3 7-7 7h-32c-4 0-7-3-7-7v-94z"/>
+    <path d="M466 279c0-3 2-6 5-7l28-12c5-2 10 1 10 7v97c0 4-3 7-7 7h-29c-4 0-7-3-7-7v-85z"/>
+    <path d="M470 239c0-4 3-7 7-7h25c4 0 7 3 7 7v8c0 3-2 5-4 6l-26 11c-5 2-9-1-9-6v-19z"/>
+    <path d="M419 318c0-33 26-55 61-55 36 0 61 22 61 59 0 3 0 7-1 10-1 3-4 5-7 5h-75c6 16 19 25 38 25 12 0 23-4 32-12 3-3 7-3 10 0l16 14c3 3 3 7 0 10-14 16-35 25-61 25-43 0-74-31-74-81zm82-18c-3-15-15-24-31-24-16 0-28 9-33 24h64z"/>
+  </g>
 </svg>

@@ -2,7 +2,35 @@ import { INodeProperties } from 'n8n-workflow';
 
 export const descriptions: INodeProperties[] = [
     {
-        displayName: 'Página',
+        displayName: 'Buscar Todas as Páginas',
+        name: 'returnAll',
+        type: 'boolean',
+        default: true,
+        description: 'Busca automaticamente todas as páginas retornadas pelo Omie',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+            },
+        },
+    },
+    {
+        displayName: 'Máximo de Itens',
+        name: 'maxItems',
+        type: 'number',
+        default: 0,
+        typeOptions: {
+            minValue: 0,
+        },
+        description: 'Quantidade máxima de itens a buscar. Use 0 para não limitar.',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+                returnAll: [true],
+            },
+        },
+    },
+    {
+        displayName: 'Página Inicial',
         name: 'page',
         type: 'number',
         default: 1,
@@ -13,6 +41,7 @@ export const descriptions: INodeProperties[] = [
         displayOptions: {
             show: {
                 operation: ['list'],
+                returnAll: [false],
             },
         },
     },
@@ -45,11 +74,25 @@ export const descriptions: INodeProperties[] = [
         },
     },
     {
-        displayName: 'Data inicial',
-        name: 'dateFrom',
-        type: 'dateTime',
+        displayName: 'Baixa Bloqueada',
+        name: 'baixaBloqueada',
+        type: 'options',
+        options: [
+            {
+                name: 'Todos',
+                value: '',
+            },
+            {
+                name: 'Sim',
+                value: 'S',
+            },
+            {
+                name: 'Não',
+                value: 'N',
+            },
+        ],
         default: '',
-        description: 'Filtra registros a partir desta data',
+        description: 'Filtra pelo campo baixa_bloqueada retornado pelo Omie',
         displayOptions: {
             show: {
                 operation: ['list'],
@@ -57,11 +100,85 @@ export const descriptions: INodeProperties[] = [
         },
     },
     {
-        displayName: 'Data final',
+        displayName: 'Bloqueado',
+        name: 'bloqueado',
+        type: 'options',
+        options: [
+            {
+                name: 'Todos',
+                value: '',
+            },
+            {
+                name: 'Sim',
+                value: 'S',
+            },
+            {
+                name: 'Não',
+                value: 'N',
+            },
+        ],
+        default: '',
+        description: 'Filtra pelo campo bloqueado retornado pelo Omie',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+            },
+        },
+    },
+    {
+        displayName: 'Status do Título',
+        name: 'statusTitulo',
+        type: 'string',
+        default: '',
+        description: 'Filtra por status_titulo. Para múltiplos status, separe por vírgula.',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+            },
+        },
+    },
+    {
+        displayName: 'Data de Vencimento Inicial',
+        name: 'dateFrom',
+        type: 'dateTime',
+        default: '',
+        description: 'Filtra registros com data_vencimento a partir desta data',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+            },
+        },
+    },
+    {
+        displayName: 'Data de Vencimento Final',
         name: 'dateTo',
         type: 'dateTime',
         default: '',
-        description: 'Filtra registros até esta data',
+        description: 'Filtra registros com data_vencimento até esta data',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+            },
+        },
+    },
+    {
+        displayName: 'Data de Previsão Inicial',
+        name: 'dataPrevisaoFrom',
+        type: 'dateTime',
+        default: '',
+        description: 'Filtra registros com data_previsao a partir desta data',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+            },
+        },
+    },
+    {
+        displayName: 'Data de Previsão Final',
+        name: 'dataPrevisaoTo',
+        type: 'dateTime',
+        default: '',
+        description: 'Filtra registros com data_previsao até esta data',
         displayOptions: {
             show: {
                 operation: ['list'],

@@ -1,0 +1,30 @@
+{
+  "name": "n8n-nodes-uber",
+  "version": "1.0.0",
+  "description": "n8n node for Uber SFTP files and ride reports",
+  "main": "dist/nodes/Uber/Uber.node.js",
+  "types": "dist/nodes/Uber/Uber.node.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "Matheus Moreira",
+  "license": "MIT",
+  "dependencies": {
+    "csv-parse": "^5.6.0",
+    "n8n-workflow": "^1.45.0",
+    "ssh2-sftp-client": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "@types/ssh2-sftp-client": "^9.0.3",
+    "typescript": "^5.0.0"
+  },
+  "n8n": {
+    "nodes": [
+      "dist/nodes/Uber/Uber.node.js"
+    ],
+    "credentials": [
+      "dist/nodes/Uber/credentials/UberSftpApi.credentials.js"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Uber">
+  <rect width="512" height="512" rx="42" fill="#000000"/>
+  <g fill="#ffffff">
+    <circle cx="256" cy="166" r="64"/>
+    <rect x="123" y="158" width="112" height="16" fill="#000000"/>
+    <rect x="235" y="142" width="36" height="48" rx="2" fill="#000000"/>
+    <g transform="translate(85 305)" fill="#ffffff">
+      <path d="M0 0h25v58c0 24 14 37 39 37s39-13 39-37V0h25v60c0 38-25 59-64 59S0 98 0 60V0z"/>
+      <path d="M164 0h73c28 0 46 13 46 34 0 13-7 24-20 30 17 6 27 19 27 37 0 25-20 38-52 38h-74V0zm70 56c15 0 23-6 23-17s-8-17-23-17h-45v34h45zm4 61c17 0 26-7 26-20 0-12-9-19-26-19h-49v39h49z" transform="scale(.74) translate(190 0)"/>
+      <path d="M0 0h116v24H27v32h80v23H27v36h91v24H0V0z" transform="translate(180 0) scale(.82)"/>
+      <path d="M0 0h76c35 0 56 18 56 48 0 21-11 36-31 43l36 48h-32L72 95H27v44H0V0zm74 71c20 0 31-8 31-23S94 24 74 24H27v47h47z" transform="translate(295 0) scale(.82)"/>
+    </g>
+  </g>
+</svg>

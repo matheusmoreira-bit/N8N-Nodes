@@ -39,6 +39,7 @@ const general = __importStar(require("./general"));
 const debug = __importStar(require("./debug"));
 const inclusion = __importStar(require("./inclusion"));
 const item = __importStar(require("./item"));
+const serverFiles = __importStar(require("./serverFiles"));
 const supplier = __importStar(require("./supplier"));
 async function router(api) {
     const items = this.getInputData();
@@ -65,6 +66,9 @@ async function router(api) {
             }
             else if (erpsapb1.resource === 'item') {
                 operationResult.push(...await item[erpsapb1.operation].execute.call(this, api, i));
+            }
+            else if (erpsapb1.resource === 'serverFiles') {
+                operationResult.push(...await serverFiles[erpsapb1.operation].execute.call(this, i));
             }
             else if (erpsapb1.resource === 'supplier') {
                 if (erpsapb1.operation === 'getByDocument') {

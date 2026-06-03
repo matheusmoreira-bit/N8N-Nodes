@@ -5,6 +5,7 @@ import * as general from './general';
 import * as debug from './debug';
 import * as inclusion from './inclusion';
 import * as item from './item';
+import * as serverFiles from './serverFiles';
 import * as supplier from './supplier';
 import { ERPSAPB1 } from './Interfaces';
 
@@ -34,6 +35,8 @@ export async function router(this: IExecuteFunctions, api: ERPSAPB1Api): Promise
                 operationResult.push(...await inclusion[erpsapb1.operation].execute.call(this, api, i));
             } else if (erpsapb1.resource === 'item') {
                 operationResult.push(...await item[erpsapb1.operation].execute.call(this, api, i));
+            } else if (erpsapb1.resource === 'serverFiles') {
+                operationResult.push(...await serverFiles[erpsapb1.operation].execute.call(this, i));
             } else if (erpsapb1.resource === 'supplier') {
                 if (erpsapb1.operation === 'getByDocument') {
                     operationResult.push(...await supplier[erpsapb1.operation].execute.call(this, api, i));

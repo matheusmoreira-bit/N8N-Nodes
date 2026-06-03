@@ -7,11 +7,22 @@ import * as accountsPayable from './accountsPayable';
 import * as suppliers from './suppliers';
 import * as items from './items';
 import * as payments from './payments';
+import * as cnabSicoob from './cnabSicoob';
 import { OmieApi } from '../transport/OmieApi';
 
 export async function router(this: IExecuteFunctions, api: OmieApi): Promise<INodeExecutionData[]> {
     const inputItems = this.getInputData();
     const operationResult: INodeExecutionData[] = [];
+    const resource = this.getNodeParameter('resource', 0) as string;
+    const operation = this.getNodeParameter('operation', 0) as string;
+
+    if (resource === 'cnabSicoob') {
+        if (operation === 'generatePaymentRemittance') {
+            return cnabSicoob.generatePaymentRemittanceExecute.call(this, api);
+        }
+
+        throw new Error(`Operação '${operation}' não suportada para CNAB 240 Sicoob.`);
+    }
 
     for (let i = 0; i < inputItems.length; i++) {
         const resource = this.getNodeParameter('resource', i) as string;

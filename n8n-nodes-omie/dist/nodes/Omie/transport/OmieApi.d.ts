@@ -11,12 +11,15 @@ export declare class OmieApi {
     private toNodeApiError;
     private callMethod;
     private getListResponse;
-    listAccountsPayable(params: IDataObject): Promise<IDataObject[]>;
+    private getNumberResponseField;
+    private listPaginated;
+    listAccountsPayable(params: IDataObject, returnAll?: boolean, maxItems?: number): Promise<IDataObject[]>;
+    getAccountPayable(params: IDataObject): Promise<IDataObject>;
     settleAccountPayable(data: IDataObject): Promise<IDataObject>;
-    listSuppliers(params: IDataObject): Promise<IDataObject[]>;
+    listSuppliers(params: IDataObject, returnAll?: boolean, maxItems?: number): Promise<IDataObject[]>;
     updateSupplier(data: IDataObject): Promise<IDataObject>;
-    listItems(params: IDataObject): Promise<IDataObject[]>;
+    listItems(params: IDataObject, returnAll?: boolean, maxItems?: number): Promise<IDataObject[]>;
     updateItem(data: IDataObject): Promise<IDataObject>;
-    listPayments(params: IDataObject): Promise<IDataObject[]>;
+    listPayments(params: IDataObject, returnAll?: boolean, maxItems?: number): Promise<IDataObject[]>;
     settlePayment(data: IDataObject): Promise<IDataObject>;
 }

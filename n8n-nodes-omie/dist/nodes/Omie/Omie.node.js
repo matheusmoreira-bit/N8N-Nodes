@@ -40,12 +40,13 @@ const accountsPayable = __importStar(require("./actions/accountsPayable"));
 const suppliers = __importStar(require("./actions/suppliers"));
 const items = __importStar(require("./actions/items"));
 const payments = __importStar(require("./actions/payments"));
+const cnabSicoob = __importStar(require("./actions/cnabSicoob"));
 class Omie {
     constructor() {
         this.description = {
             displayName: 'Omie',
             name: 'omie',
-            icon: 'file:omie.svg',
+            icon: 'file:omie-logo.png',
             group: ['output'],
             version: 1,
             description: 'Operações de compras, fornecedores, itens e contas a pagar no Omie',
@@ -77,6 +78,10 @@ class Omie {
                             name: 'Pagamentos',
                             value: 'payment',
                         },
+                        {
+                            name: 'CNAB 240 Sicoob',
+                            value: 'cnabSicoob',
+                        },
                     ],
                     default: 'accountsPayable',
                     description: 'Recurso Omie a ser utilizado',
@@ -85,6 +90,7 @@ class Omie {
                 ...suppliers.descriptions,
                 ...items.descriptions,
                 ...payments.descriptions,
+                ...cnabSicoob.descriptions,
             ],
         };
     }
@@ -100,6 +106,11 @@ Omie.credentials = [
     {
         name: 'omieApi',
         required: true,
+        displayOptions: {
+            show: {
+                resource: ['accountsPayable', 'supplier', 'item', 'payment', 'cnabSicoob'],
+            },
+        },
     },
 ];
 //# sourceMappingURL=Omie.node.js.map

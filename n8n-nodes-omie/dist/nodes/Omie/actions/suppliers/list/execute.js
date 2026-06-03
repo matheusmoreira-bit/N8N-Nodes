@@ -2,7 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.execute = execute;
 async function execute(api, index) {
-    const page = this.getNodeParameter('page', index);
+    const returnAll = this.getNodeParameter('returnAll', index, true);
+    const maxItems = this.getNodeParameter('maxItems', index, 0);
+    const page = this.getNodeParameter('page', index, 1);
     const pageSize = this.getNodeParameter('pageSize', index);
     const onlyApiImported = this.getNodeParameter('onlyApiImported', index);
     const cpfCnpj = this.getNodeParameter('cpfCnpj', index);
@@ -20,7 +22,7 @@ async function execute(api, index) {
     if (nomeFantasia) {
         params.nome_fantasia = nomeFantasia;
     }
-    const results = await api.listSuppliers(params);
+    const results = await api.listSuppliers(params, returnAll, maxItems);
     return this.helpers.returnJsonArray(results);
 }
 //# sourceMappingURL=execute.js.map

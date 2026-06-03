@@ -3,7 +3,35 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.descriptions = void 0;
 exports.descriptions = [
     {
-        displayName: 'Página',
+        displayName: 'Buscar Todas as Páginas',
+        name: 'returnAll',
+        type: 'boolean',
+        default: true,
+        description: 'Busca automaticamente todas as páginas retornadas pelo Omie',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+            },
+        },
+    },
+    {
+        displayName: 'Máximo de Itens',
+        name: 'maxItems',
+        type: 'number',
+        default: 0,
+        typeOptions: {
+            minValue: 0,
+        },
+        description: 'Quantidade máxima de itens a buscar. Use 0 para não limitar.',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+                returnAll: [true],
+            },
+        },
+    },
+    {
+        displayName: 'Página Inicial',
         name: 'page',
         type: 'number',
         default: 1,
@@ -14,6 +42,7 @@ exports.descriptions = [
         displayOptions: {
             show: {
                 operation: ['list'],
+                returnAll: [false],
             },
         },
     },

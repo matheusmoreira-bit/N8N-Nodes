@@ -13,6 +13,7 @@ import * as general from './actions/general';
 import * as debug from './actions/debug';
 import * as inclusion from './actions/inclusion';
 import * as item from './actions/item';
+import * as serverFiles from './actions/serverFiles';
 import * as supplier from './actions/supplier';
 
 import {router} from './actions/router';
@@ -25,6 +26,24 @@ export class ERPSAPB1 implements INodeType {
         {
             name: 'erpSAPB1Api',
             required: true,
+            displayOptions: {
+                hide: {
+                    resource: [
+                        'serverFiles',
+                    ],
+                },
+            },
+        },
+        {
+            name: 'erpSAPB1ServerFiles',
+            required: false,
+            displayOptions: {
+                show: {
+                    resource: [
+                        'serverFiles',
+                    ],
+                },
+            },
         },
     ];
 
@@ -71,6 +90,10 @@ export class ERPSAPB1 implements INodeType {
                         name: 'Itens',
                         value: 'item',
                     },
+                    {
+                        name: 'Arquivos do Servidor',
+                        value: 'serverFiles',
+                    },
                 ],
                 default: 'general',
                 description: 'O recurso a ser utilizado pelo conector',
@@ -80,13 +103,16 @@ export class ERPSAPB1 implements INodeType {
             ...inclusion.descriptions,
             ...general.descriptions,
             ...item.descriptions,
+            ...serverFiles.descriptions,
             ...supplier.descriptions,
         ],
     };
 
     public async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-        const credentials = await this.getCredentials('erpSAPB1Api') as IDataObject;
-        const api = ERPSAPB1Api.createInstance(credentials, this);
+        const resource = this.getNodeParameter('resource', 0) as string;
+        const api = resource === 'serverFiles'
+            ? undefined as unknown as ERPSAPB1Api
+            : ERPSAPB1Api.createInstance(await this.getCredentials('erpSAPB1Api') as IDataObject, this);
         // Router returns INodeExecutionData[]
         // We need to output INodeExecutionData[][]
         // So we wrap in []

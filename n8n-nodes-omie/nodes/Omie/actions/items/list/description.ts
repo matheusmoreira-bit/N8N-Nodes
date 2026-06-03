@@ -2,7 +2,35 @@ import { INodeProperties } from 'n8n-workflow';
 
 export const descriptions: INodeProperties[] = [
     {
-        displayName: 'Página',
+        displayName: 'Buscar Todas as Páginas',
+        name: 'returnAll',
+        type: 'boolean',
+        default: true,
+        description: 'Busca automaticamente todas as páginas retornadas pelo Omie',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+            },
+        },
+    },
+    {
+        displayName: 'Máximo de Itens',
+        name: 'maxItems',
+        type: 'number',
+        default: 0,
+        typeOptions: {
+            minValue: 0,
+        },
+        description: 'Quantidade máxima de itens a buscar. Use 0 para não limitar.',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+                returnAll: [true],
+            },
+        },
+    },
+    {
+        displayName: 'Página Inicial',
         name: 'page',
         type: 'number',
         default: 1,
@@ -13,6 +41,7 @@ export const descriptions: INodeProperties[] = [
         displayOptions: {
             show: {
                 operation: ['list'],
+                returnAll: [false],
             },
         },
     },

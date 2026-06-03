@@ -7,6 +7,7 @@ const execute_1 = require("./list/execute");
 Object.defineProperty(exports, "listExecute", { enumerable: true, get: function () { return execute_1.execute; } });
 const execute_2 = require("./update/execute");
 Object.defineProperty(exports, "updateExecute", { enumerable: true, get: function () { return execute_2.execute; } });
+const displayOptions_1 = require("../displayOptions");
 exports.descriptions = [
     {
         displayName: 'Operação',
@@ -24,8 +25,13 @@ exports.descriptions = [
         ],
         default: 'list',
         description: 'Operação a ser executada em Itens',
+        displayOptions: {
+            show: {
+                resource: ['item'],
+            },
+        },
     },
-    ...description_1.descriptions,
-    ...description_2.descriptions,
+    ...(0, displayOptions_1.addResourceDisplayOptions)(description_1.descriptions, 'item'),
+    ...(0, displayOptions_1.addResourceDisplayOptions)(description_2.descriptions, 'item'),
 ];
 //# sourceMappingURL=index.js.map

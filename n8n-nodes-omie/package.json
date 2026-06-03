@@ -22,7 +22,7 @@
       "dist/nodes/Omie/Omie.node.js"
     ],
     "credentials": [
-      "dist/credentials/OmieApi.credentials.js"
+      "dist/nodes/Omie/credentials/OmieApi.credentials.js"
     ]
   }
 }

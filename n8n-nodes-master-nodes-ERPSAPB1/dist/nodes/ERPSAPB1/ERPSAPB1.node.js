@@ -39,6 +39,7 @@ const general = __importStar(require("./actions/general"));
 const debug = __importStar(require("./actions/debug"));
 const inclusion = __importStar(require("./actions/inclusion"));
 const item = __importStar(require("./actions/item"));
+const serverFiles = __importStar(require("./actions/serverFiles"));
 const supplier = __importStar(require("./actions/supplier"));
 const router_1 = require("./actions/router");
 const ERPSAPB1Api_1 = require("./transport/ERPSAPB1Api");
@@ -87,6 +88,10 @@ class ERPSAPB1 {
                             name: 'Itens',
                             value: 'item',
                         },
+                        {
+                            name: 'Arquivos do Servidor',
+                            value: 'serverFiles',
+                        },
                     ],
                     default: 'general',
                     description: 'O recurso a ser utilizado pelo conector',
@@ -96,13 +101,16 @@ class ERPSAPB1 {
                 ...inclusion.descriptions,
                 ...general.descriptions,
                 ...item.descriptions,
+                ...serverFiles.descriptions,
                 ...supplier.descriptions,
             ],
         };
     }
     async execute() {
-        const credentials = await this.getCredentials('erpSAPB1Api');
-        const api = ERPSAPB1Api_1.ERPSAPB1Api.createInstance(credentials, this);
+        const resource = this.getNodeParameter('resource', 0);
+        const api = resource === 'serverFiles'
+            ? undefined
+            : ERPSAPB1Api_1.ERPSAPB1Api.createInstance(await this.getCredentials('erpSAPB1Api'), this);
         // Router returns INodeExecutionData[]
         // We need to output INodeExecutionData[][]
         // So we wrap in []
@@ -114,5 +122,23 @@ ERPSAPB1.credentials = [
     {
         name: 'erpSAPB1Api',
         required: true,
+        displayOptions: {
+            hide: {
+                resource: [
+                    'serverFiles',
+                ],
+            },
+        },
+    },
+    {
+        name: 'erpSAPB1ServerFiles',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: [
+                    'serverFiles',
+                ],
+            },
+        },
     },
 ];

@@ -20,3 +20,4 @@ services:
 volumes:
   n8n_data:
     external: true
+    name: ${N8N_VOLUME:-n8n_data}

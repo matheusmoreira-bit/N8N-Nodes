@@ -1,0 +1,29 @@
+{
+  "name": "n8n-nodes-accesstage",
+  "version": "1.0.0",
+  "description": "n8n node for Accesstage APUS API",
+  "main": "dist/nodes/Accesstage/Accesstage.node.js",
+  "types": "dist/nodes/Accesstage/Accesstage.node.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "Matheus Moreira",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.8.2",
+    "form-data": "^4.0.1",
+    "n8n-workflow": "^1.45.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "typescript": "^5.0.0"
+  },
+  "n8n": {
+    "nodes": [
+      "dist/nodes/Accesstage/Accesstage.node.js"
+    ],
+    "credentials": [
+      "dist/nodes/Accesstage/credentials/AccesstageApi.credentials.js"
+    ]
+  }
+}
