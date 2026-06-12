@@ -21,11 +21,6 @@ export class Omie implements INodeType {
         {
             name: 'omieApi',
             required: true,
-            displayOptions: {
-                show: {
-                    resource: ['accountsPayable', 'supplier', 'item', 'payment', 'cnabSicoob'],
-                },
-            },
         },
     ];
 
@@ -45,8 +40,9 @@ export class Omie implements INodeType {
         properties: [
             {
                 displayName: 'Recurso',
-                name: 'resource',
+                name: 'omieResource',
                 type: 'options',
+                noDataExpression: true,
                 options: [
                     {
                         name: 'Contas a Pagar',

@@ -25,7 +25,7 @@ export const descriptions: INodeProperties[] = [
         description: 'Operação a ser executada em Fornecedores',
         displayOptions: {
             show: {
-                resource: ['supplier'],
+                omieResource: ['supplier'],
             },
         },
     },

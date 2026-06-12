@@ -25,7 +25,7 @@ export const descriptions: INodeProperties[] = [
         description: 'Operação a ser executada em Pagamentos',
         displayOptions: {
             show: {
-                resource: ['payment'],
+                omieResource: ['payment'],
             },
         },
     },

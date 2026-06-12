@@ -217,7 +217,7 @@ function buildSegmentJ52(payment, company, sequence) {
     ]);
 }
 function getRecordCount(payments) {
-    return payments.reduce((count, payment) => count + (payment.codigoBarras ? 2 : 2), 0);
+    return payments.length * 2;
 }
 function buildBatchTrailer(payments) {
     const recordCount = getRecordCount(payments) + 2;

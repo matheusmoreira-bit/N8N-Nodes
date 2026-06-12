@@ -19,7 +19,7 @@ exports.descriptions = [
         description: 'Operação CNAB 240 Sicoob a ser executada',
         displayOptions: {
             show: {
-                resource: ['cnabSicoob'],
+                omieResource: ['cnabSicoob'],
             },
         },
     },

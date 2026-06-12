@@ -25,7 +25,7 @@ export const descriptions: INodeProperties[] = [
         description: 'Operação a ser executada em Contas a Pagar',
         displayOptions: {
             show: {
-                resource: ['accountsPayable'],
+                omieResource: ['accountsPayable'],
             },
         },
     },

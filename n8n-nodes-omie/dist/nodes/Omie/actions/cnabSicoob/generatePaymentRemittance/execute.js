@@ -12,9 +12,7 @@ function formatDatePart(value) {
 }
 function resolveFileName(fileName, fileSequence, generationDate) {
     const trimmedFileName = fileName.trim();
-    if (trimmedFileName
-        && !trimmedFileName.includes('{{')
-        && !trimmedFileName.includes('format')) {
+    if (trimmedFileName && !trimmedFileName.includes('{{')) {
         return trimmedFileName.toUpperCase().endsWith('.REM')
             ? trimmedFileName
             : `${trimmedFileName}.REM`;

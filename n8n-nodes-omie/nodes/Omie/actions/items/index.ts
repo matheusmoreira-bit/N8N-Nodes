@@ -25,7 +25,7 @@ export const descriptions: INodeProperties[] = [
         description: 'Operação a ser executada em Itens',
         displayOptions: {
             show: {
-                resource: ['item'],
+                omieResource: ['item'],
             },
         },
     },

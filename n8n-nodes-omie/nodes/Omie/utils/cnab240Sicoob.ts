@@ -289,7 +289,7 @@ function buildSegmentJ52(
 }
 
 function getRecordCount(payments: Cnab240SicoobPaymentData[]): number {
-    return payments.reduce((count, payment) => count + (payment.codigoBarras ? 2 : 2), 0);
+    return payments.length * 2;
 }
 
 function buildBatchTrailer(payments: Cnab240SicoobPaymentData[]): string {

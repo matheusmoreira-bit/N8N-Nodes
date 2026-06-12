@@ -10,10 +10,14 @@ import * as payments from './payments';
 import * as cnabSicoob from './cnabSicoob';
 import { OmieApi } from '../transport/OmieApi';
 
+function getOmieResource(context: IExecuteFunctions, itemIndex: number): string {
+    return context.getNodeParameter('omieResource', itemIndex, context.getNodeParameter('resource', itemIndex, 'accountsPayable')) as string;
+}
+
 export async function router(this: IExecuteFunctions, api: OmieApi): Promise<INodeExecutionData[]> {
     const inputItems = this.getInputData();
     const operationResult: INodeExecutionData[] = [];
-    const resource = this.getNodeParameter('resource', 0) as string;
+    const resource = getOmieResource(this, 0);
     const operation = this.getNodeParameter('operation', 0) as string;
 
     if (resource === 'cnabSicoob') {
@@ -25,7 +29,7 @@ export async function router(this: IExecuteFunctions, api: OmieApi): Promise<INo
     }
 
     for (let i = 0; i < inputItems.length; i++) {
-        const resource = this.getNodeParameter('resource', i) as string;
+        const resource = getOmieResource(this, i);
         const operation = this.getNodeParameter('operation', i) as string;
 
         try {

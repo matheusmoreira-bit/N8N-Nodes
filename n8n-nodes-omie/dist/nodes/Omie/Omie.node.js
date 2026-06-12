@@ -59,8 +59,9 @@ class Omie {
             properties: [
                 {
                     displayName: 'Recurso',
-                    name: 'resource',
+                    name: 'omieResource',
                     type: 'options',
+                    noDataExpression: true,
                     options: [
                         {
                             name: 'Contas a Pagar',
@@ -106,11 +107,6 @@ Omie.credentials = [
     {
         name: 'omieApi',
         required: true,
-        displayOptions: {
-            show: {
-                resource: ['accountsPayable', 'supplier', 'item', 'payment', 'cnabSicoob'],
-            },
-        },
     },
 ];
 //# sourceMappingURL=Omie.node.js.map

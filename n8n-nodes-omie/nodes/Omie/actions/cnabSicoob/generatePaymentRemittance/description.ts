@@ -2,7 +2,7 @@ import { INodeProperties } from 'n8n-workflow';
 
 const displayOptions = {
     show: {
-        resource: ['cnabSicoob'],
+        omieResource: ['cnabSicoob'],
         operation: ['generatePaymentRemittance'],
     },
 };

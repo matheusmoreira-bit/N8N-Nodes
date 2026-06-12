@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.descriptions = void 0;
 const displayOptions = {
     show: {
-        resource: ['cnabSicoob'],
+        omieResource: ['cnabSicoob'],
         operation: ['generatePaymentRemittance'],
     },
 };

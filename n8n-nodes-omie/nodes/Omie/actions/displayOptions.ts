@@ -7,7 +7,7 @@ export function addResourceDisplayOptions(properties: INodeProperties[], resourc
             ...property.displayOptions,
             show: {
                 ...property.displayOptions?.show,
-                resource: [resource],
+                omieResource: [resource],
             },
         },
     }));

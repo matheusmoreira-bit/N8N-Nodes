@@ -39,10 +39,13 @@ const suppliers = __importStar(require("./suppliers"));
 const items = __importStar(require("./items"));
 const payments = __importStar(require("./payments"));
 const cnabSicoob = __importStar(require("./cnabSicoob"));
+function getOmieResource(context, itemIndex) {
+    return context.getNodeParameter('omieResource', itemIndex, context.getNodeParameter('resource', itemIndex, 'accountsPayable'));
+}
 async function router(api) {
     const inputItems = this.getInputData();
     const operationResult = [];
-    const resource = this.getNodeParameter('resource', 0);
+    const resource = getOmieResource(this, 0);
     const operation = this.getNodeParameter('operation', 0);
     if (resource === 'cnabSicoob') {
         if (operation === 'generatePaymentRemittance') {
@@ -51,7 +54,7 @@ async function router(api) {
         throw new Error(`Operação '${operation}' não suportada para CNAB 240 Sicoob.`);
     }
     for (let i = 0; i < inputItems.length; i++) {
-        const resource = this.getNodeParameter('resource', i);
+        const resource = getOmieResource(this, i);
         const operation = this.getNodeParameter('operation', i);
         try {
             if (resource === 'accountsPayable') {

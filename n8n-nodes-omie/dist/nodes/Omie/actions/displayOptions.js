@@ -8,7 +8,7 @@ function addResourceDisplayOptions(properties, resource) {
             ...property.displayOptions,
             show: {
                 ...property.displayOptions?.show,
-                resource: [resource],
+                omieResource: [resource],
             },
         },
     }));
