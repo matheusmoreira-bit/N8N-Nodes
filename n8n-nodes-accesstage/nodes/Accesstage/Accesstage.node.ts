@@ -106,12 +106,9 @@ export class Accesstage implements INodeType {
 					},
 				},
 				options: [
-					{ name: 'MD5', value: 'md5' },
-					{ name: 'SHA1', value: 'sha1' },
 					{ name: 'SHA256', value: 'sha256' },
-					{ name: 'SHA512', value: 'sha512' },
 				],
-				default: 'md5',
+				default: 'sha256',
 				description: 'Hash sent in the multipart field named hash',
 			},
 			{
@@ -191,7 +188,8 @@ export class Accesstage implements INodeType {
 			if (operation === 'upload') {
 				const companyCode = this.getNodeParameter('companyCode', i) as string;
 				const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i) as string;
-				const hashAlgorithm = this.getNodeParameter('hashAlgorithm', i) as string;
+				const configuredHashAlgorithm = this.getNodeParameter('hashAlgorithm', i, 'sha256') as string;
+				const hashAlgorithm = configuredHashAlgorithm === 'sha256' ? configuredHashAlgorithm : 'sha256';
 				const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
 				const fileBuffer = await this.helpers.getBinaryDataBuffer(i, binaryData);
 				const hash = createHash(hashAlgorithm).update(fileBuffer).digest('hex');

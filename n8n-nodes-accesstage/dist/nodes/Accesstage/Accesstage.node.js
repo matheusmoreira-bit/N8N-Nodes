@@ -105,12 +105,9 @@ class Accesstage {
                         },
                     },
                     options: [
-                        { name: 'MD5', value: 'md5' },
-                        { name: 'SHA1', value: 'sha1' },
                         { name: 'SHA256', value: 'sha256' },
-                        { name: 'SHA512', value: 'sha512' },
                     ],
-                    default: 'md5',
+                    default: 'sha256',
                     description: 'Hash sent in the multipart field named hash',
                 },
                 {
@@ -190,7 +187,8 @@ class Accesstage {
             if (operation === 'upload') {
                 const companyCode = this.getNodeParameter('companyCode', i);
                 const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i);
-                const hashAlgorithm = this.getNodeParameter('hashAlgorithm', i);
+                const configuredHashAlgorithm = this.getNodeParameter('hashAlgorithm', i, 'sha256');
+                const hashAlgorithm = configuredHashAlgorithm === 'sha256' ? configuredHashAlgorithm : 'sha256';
                 const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
                 const fileBuffer = await this.helpers.getBinaryDataBuffer(i, binaryData);
                 const hash = (0, crypto_1.createHash)(hashAlgorithm).update(fileBuffer).digest('hex');
