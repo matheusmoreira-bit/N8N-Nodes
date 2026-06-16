@@ -164,6 +164,10 @@ export class OmieApi {
         return this.getListResponse<IDataObject>(response, ['clientes_cadastro']);
     }
 
+    public async getSupplier(params: IDataObject): Promise<IDataObject> {
+        return this.callMethod<IDataObject>('geral/clientes/', 'ConsultarCliente', [params]);
+    }
+
     public async updateSupplier(data: IDataObject): Promise<IDataObject> {
         return this.callMethod<IDataObject>('geral/clientes/', 'AlterarCliente', [data]);
     }

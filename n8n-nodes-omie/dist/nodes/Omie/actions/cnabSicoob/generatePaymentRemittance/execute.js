@@ -63,6 +63,27 @@ function detectTipoInscricao(document, defaultValue) {
     }
     return onlyDigits(document).length <= 11 ? '1' : '2';
 }
+function splitValueAndDigit(value, explicitDigit = '') {
+    const trimmedValue = value.trim();
+    const trimmedDigit = explicitDigit.trim();
+    if (trimmedDigit) {
+        return {
+            value: trimmedValue,
+            digit: trimmedDigit,
+        };
+    }
+    const match = /^(.+?)[\s\-/]([0-9A-Za-z])$/.exec(trimmedValue);
+    if (!match) {
+        return {
+            value: trimmedValue,
+            digit: '',
+        };
+    }
+    return {
+        value: match[1].trim(),
+        digit: match[2].trim(),
+    };
+}
 function requireValue(value, fieldName, itemIndex) {
     if (!value) {
         throw new Error(`Campo obrigatório '${fieldName}' não encontrado no item ${itemIndex + 1}.`);
@@ -85,6 +106,38 @@ function requireOrFallback(value, fieldName, itemIndex, ignorePaymentErrors, war
     }
     warn(warnings, itemIndex, fieldName, `Campo ausente. Gerado com '${fallback || 'branco/zero'}'.`);
     return fallback;
+}
+function appendUniquePath(paths, path) {
+    if (!paths.includes(path)) {
+        paths.push(path);
+    }
+}
+function withSupplierPaths(paths) {
+    const supplierPrefixes = [
+        'fornecedor',
+        'cliente_fornecedor',
+        'supplier',
+    ];
+    const bankPrefixes = [
+        'dados_bancarios',
+        'dadosBancarios',
+        'dados_bancarios.0',
+        'dadosBancarios.0',
+        'dados_bancarios_fornecedor',
+    ];
+    const allPaths = [...paths];
+    for (const path of paths) {
+        for (const prefix of supplierPrefixes) {
+            appendUniquePath(allPaths, `${prefix}.${path}`);
+        }
+        for (const bankPrefix of bankPrefixes) {
+            appendUniquePath(allPaths, `${bankPrefix}.${path}`);
+            for (const supplierPrefix of supplierPrefixes) {
+                appendUniquePath(allPaths, `${supplierPrefix}.${bankPrefix}.${path}`);
+            }
+        }
+    }
+    return allPaths;
 }
 function getFirstJsonValue(item, paths, fallback = '') {
     for (const path of paths) {
@@ -192,16 +245,81 @@ function extractPayableJson(inputItems) {
     }
     return payables;
 }
+function hasBarcodeData(payable) {
+    return Boolean(normalizeBarcode(getBarcodeValue(payable)));
+}
+function hasTransferBankData(payable) {
+    return Boolean(toStringValue(getFirstJsonValue(payable, fieldPaths.codigoBancoFavorecido))
+        && toStringValue(getFirstJsonValue(payable, fieldPaths.agenciaFavorecido))
+        && toStringValue(getFirstJsonValue(payable, fieldPaths.contaFavorecido)));
+}
+function hasFavoredIdentityData(payable) {
+    return Boolean(toStringValue(getFirstJsonValue(payable, fieldPaths.nomeFavorecido))
+        && toStringValue(getFirstJsonValue(payable, fieldPaths.numeroInscricaoFavorecido)));
+}
+function shouldFetchSupplierDetails(payable) {
+    return !hasBarcodeData(payable) && (!hasTransferBankData(payable) || !hasFavoredIdentityData(payable));
+}
+function getSupplierLookupParams(payable) {
+    const codigoClienteOmie = getFirstJsonValue(payable, [
+        'codigo_cliente_fornecedor',
+        'codigo_cliente',
+        'codigo_cliente_omie',
+        'fornecedor.codigo_cliente_omie',
+        'cliente_fornecedor.codigo_cliente_omie',
+    ]);
+    const codigoClienteIntegracao = getFirstJsonValue(payable, [
+        'codigo_cliente_fornecedor_integracao',
+        'codigo_cliente_integracao',
+        'fornecedor.codigo_cliente_integracao',
+        'cliente_fornecedor.codigo_cliente_integracao',
+    ]);
+    if (codigoClienteOmie) {
+        const parsedCodigoClienteOmie = Number(codigoClienteOmie);
+        return {
+            codigo_cliente_omie: Number.isNaN(parsedCodigoClienteOmie)
+                ? codigoClienteOmie
+                : parsedCodigoClienteOmie,
+        };
+    }
+    if (codigoClienteIntegracao) {
+        return {
+            codigo_cliente_integracao: codigoClienteIntegracao,
+        };
+    }
+    return {};
+}
+function getSupplierCacheKey(params) {
+    return Object.entries(params)
+        .map(([key, value]) => `${key}:${value}`)
+        .join('|');
+}
+function mergeSupplierDetails(payable, supplier) {
+    const supplierBankData = getFirstJsonValue(supplier, [
+        'dados_bancarios',
+        'dadosBancarios',
+        'dados_bancarios.0',
+        'dadosBancarios.0',
+    ], {});
+    return {
+        ...payable,
+        fornecedor: supplier,
+        cliente_fornecedor: supplier,
+        dados_bancarios_fornecedor: supplierBankData,
+    };
+}
 async function enrichPayablesWithOmieDetails(api, payables, warnings, fetchDetailsFromOmie) {
     if (!fetchDetailsFromOmie) {
         return payables;
     }
     const enrichedPayables = [];
+    const supplierCache = new Map();
     for (const [index, payable] of payables.entries()) {
-        if (normalizeBarcode(getBarcodeValue(payable))) {
+        if (hasBarcodeData(payable)) {
             enrichedPayables.push(payable);
             continue;
         }
+        let enrichedPayable = payable;
         const codigoLancamentoOmie = getFirstJsonValue(payable, ['codigo_lancamento_omie', 'codigo_lancamento']);
         const codigoLancamentoIntegracao = getFirstJsonValue(payable, ['codigo_lancamento_integracao']);
         const params = {};
@@ -212,22 +330,68 @@ async function enrichPayablesWithOmieDetails(api, payables, warnings, fetchDetai
             params.codigo_lancamento_integracao = codigoLancamentoIntegracao;
         }
         if (Object.keys(params).length === 0) {
-            enrichedPayables.push(payable);
-            continue;
+            enrichedPayable = payable;
         }
-        try {
-            const detail = await api.getAccountPayable(params);
-            enrichedPayables.push({
-                ...payable,
-                ...detail,
-            });
+        else {
+            try {
+                const detail = await api.getAccountPayable(params);
+                enrichedPayable = {
+                    ...payable,
+                    ...detail,
+                };
+            }
+            catch (error) {
+                warn(warnings, index, 'Consulta Omie', `Não foi possível consultar detalhes da conta a pagar: ${error.message}`);
+            }
         }
-        catch (error) {
-            warn(warnings, index, 'Consulta Omie', `Não foi possível consultar detalhes da conta a pagar: ${error.message}`);
-            enrichedPayables.push(payable);
+        if (shouldFetchSupplierDetails(enrichedPayable)) {
+            const supplierParams = getSupplierLookupParams(enrichedPayable);
+            const supplierCacheKey = getSupplierCacheKey(supplierParams);
+            if (supplierCacheKey) {
+                try {
+                    let supplier = supplierCache.get(supplierCacheKey);
+                    if (!supplier) {
+                        supplier = await api.getSupplier(supplierParams);
+                        supplierCache.set(supplierCacheKey, supplier);
+                    }
+                    enrichedPayable = mergeSupplierDetails(enrichedPayable, supplier);
+                }
+                catch (error) {
+                    warn(warnings, index, 'Consulta Fornecedor Omie', `Não foi possível consultar dados bancários do fornecedor: ${error.message}`);
+                }
+            }
         }
+        enrichedPayables.push(enrichedPayable);
     }
     return enrichedPayables;
+}
+function isPixLikePayment(json) {
+    const tipoDocumento = toStringValue(getFirstJsonValue(json, fieldPaths.tipoDocumento)).toUpperCase();
+    const formaPagamento = toStringValue(getFirstJsonValue(json, fieldPaths.codigoFormaPagamento)).toUpperCase();
+    const chavePix = toStringValue(getFirstJsonValue(json, fieldPaths.chavePix));
+    return tipoDocumento.includes('PIX')
+        || formaPagamento.includes('PIX')
+        || Boolean(chavePix);
+}
+function getPaymentIdentificationMessage(json, missingFields) {
+    const tipoDocumento = toStringValue(getFirstJsonValue(json, fieldPaths.tipoDocumento));
+    const formaPagamento = toStringValue(getFirstJsonValue(json, fieldPaths.codigoFormaPagamento));
+    const chavePix = toStringValue(getFirstJsonValue(json, fieldPaths.chavePix));
+    const details = [
+        tipoDocumento ? `tipo de documento: ${tipoDocumento}` : '',
+        formaPagamento ? `forma de pagamento: ${formaPagamento}` : '',
+        chavePix ? 'chave Pix encontrada' : '',
+    ].filter(Boolean).join('; ');
+    const missingText = missingFields.length > 0
+        ? ` Campos faltantes para transferência: ${missingFields.join(', ')}.`
+        : '';
+    if (isPixLikePayment(json)) {
+        return 'Pagamento identificado como PIX, mas não há código de barras nem dados bancários completos para gerar o CNAB Sicoob por transferência. '
+            + 'O gerador atual não monta pagamento PIX somente por chave; preencha banco, agência, conta e DV no cadastro do fornecedor/integração bancária do Omie, ou envie uma linha digitável/código de barras quando for boleto. '
+            + `${details ? `Detalhes encontrados: ${details}.` : ''}${missingText}`;
+    }
+    return 'Não foi encontrado código de barras nem dados bancários completos do favorecido. Pagamento ignorado para evitar código de barras zerado ou conta bancária inválida.'
+        + missingText;
 }
 const fieldPaths = {
     valor: [
@@ -264,13 +428,112 @@ const fieldPaths = {
     dataVencimento: ['data_vencimento', 'data_previsao', 'data_pagamento'],
     numeroDocumento: ['numero_documento_fiscal', 'numero_documento', 'numero_doc', 'documento', 'codigo_lancamento_integracao'],
     seuNumero: ['codigo_lancamento_omie', 'codigo_lancamento', 'codigo_lancamento_integracao', 'numero_documento_fiscal'],
-    codigoBancoFavorecido: ['codigo_banco_favorecido', 'banco_favorecido', 'codigo_banco', 'banco.codigo', 'dados_bancarios.codigo_banco'],
-    agenciaFavorecido: ['agencia_favorecido', 'agencia', 'dados_bancarios.agencia'],
-    agenciaDvFavorecido: ['agencia_dv_favorecido', 'agencia_dv', 'digito_agencia', 'dados_bancarios.agencia_dv'],
-    contaFavorecido: ['conta_favorecido', 'conta_corrente_favorecido', 'conta', 'dados_bancarios.conta'],
-    contaDvFavorecido: ['conta_dv_favorecido', 'digito_conta_favorecido', 'conta_dv', 'digito_conta', 'dados_bancarios.conta_dv'],
-    nomeFavorecido: ['nome_favorecido', 'razao_social_favorecido', 'nome_fantasia_favorecido', 'razao_social', 'nome_fantasia', 'cliente_nome'],
-    numeroInscricaoFavorecido: ['cpf_cnpj_favorecido', 'cnpj_cpf_favorecido', 'cpf_cnpj', 'cnpj_cpf', 'cnpj', 'cpf'],
+    codigoBancoFavorecido: withSupplierPaths([
+        'cnab_integracao_bancaria.banco_transferencia',
+        'codigo_banco_favorecido',
+        'banco_favorecido',
+        'codigo_banco',
+        'cod_banco',
+        'banco',
+        'banco.codigo',
+        'dados_bancarios.codigo_banco',
+        'dados_bancarios.cod_banco',
+        'dados_bancarios.banco',
+        'dadosBancarios.codigo_banco',
+        'dadosBancarios.cod_banco',
+        'dadosBancarios.banco',
+    ]),
+    agenciaFavorecido: withSupplierPaths([
+        'cnab_integracao_bancaria.agencia_transferencia',
+        'agencia_favorecido',
+        'agencia',
+        'agencia_conta',
+        'dados_bancarios.agencia',
+        'dados_bancarios.agencia_conta',
+        'dadosBancarios.agencia',
+        'dadosBancarios.agencia_conta',
+    ]),
+    agenciaDvFavorecido: withSupplierPaths([
+        'cnab_integracao_bancaria.agencia_dv_transferencia',
+        'cnab_integracao_bancaria.digito_agencia_transferencia',
+        'agencia_dv_favorecido',
+        'agencia_dv',
+        'digito_agencia',
+        'dados_bancarios.agencia_dv',
+        'dados_bancarios.digito_agencia',
+        'dadosBancarios.agencia_dv',
+        'dadosBancarios.digito_agencia',
+    ]),
+    contaFavorecido: withSupplierPaths([
+        'cnab_integracao_bancaria.conta_corrente_transferencia',
+        'cnab_integracao_bancaria.conta_transferencia',
+        'conta_favorecido',
+        'conta_corrente_favorecido',
+        'conta_corrente',
+        'conta',
+        'dados_bancarios.conta_corrente',
+        'dados_bancarios.conta',
+        'dadosBancarios.conta_corrente',
+        'dadosBancarios.conta',
+    ]),
+    contaDvFavorecido: withSupplierPaths([
+        'cnab_integracao_bancaria.conta_dv_transferencia',
+        'cnab_integracao_bancaria.digito_conta_transferencia',
+        'conta_dv_favorecido',
+        'digito_conta_favorecido',
+        'conta_dv',
+        'digito_conta',
+        'dv_conta',
+        'dados_bancarios.conta_dv',
+        'dados_bancarios.digito_conta',
+        'dados_bancarios.dv_conta',
+        'dadosBancarios.conta_dv',
+        'dadosBancarios.digito_conta',
+        'dadosBancarios.dv_conta',
+    ]),
+    nomeFavorecido: withSupplierPaths([
+        'cnab_integracao_bancaria.nome_transferencia',
+        'nome_favorecido',
+        'razao_social_favorecido',
+        'nome_fantasia_favorecido',
+        'razao_social',
+        'nome_fantasia',
+        'cliente_nome',
+        'dados_bancarios.nome_titular',
+        'dados_bancarios.nome_titular_conta',
+        'dadosBancarios.nome_titular',
+        'dadosBancarios.nome_titular_conta',
+    ]),
+    numeroInscricaoFavorecido: withSupplierPaths([
+        'cnab_integracao_bancaria.cpf_cnpj_transferencia',
+        'cpf_cnpj_favorecido',
+        'cnpj_cpf_favorecido',
+        'cpf_cnpj',
+        'cnpj_cpf',
+        'cnpj',
+        'cpf',
+        'dados_bancarios.cpf_cnpj',
+        'dados_bancarios.cnpj_cpf',
+        'dados_bancarios.cpf_cnpj_titular',
+        'dadosBancarios.cpf_cnpj',
+        'dadosBancarios.cnpj_cpf',
+        'dadosBancarios.cpf_cnpj_titular',
+    ]),
+    chavePix: withSupplierPaths([
+        'cnab_integracao_bancaria.chave_pix',
+        'chave_pix',
+        'cChavePix',
+        'dados_bancarios.chave_pix',
+        'dados_bancarios.cChavePix',
+        'dadosBancarios.chave_pix',
+        'dadosBancarios.cChavePix',
+    ]),
+    tipoDocumento: ['codigo_tipo_documento', 'tipo_documento', 'documento_tipo'],
+    codigoFormaPagamento: [
+        'cnab_integracao_bancaria.codigo_forma_pagamento',
+        'codigo_forma_pagamento',
+        'forma_pagamento',
+    ],
     logradouroFavorecido: ['logradouro_favorecido', 'endereco_favorecido', 'endereco', 'logradouro'],
     numeroEnderecoFavorecido: ['numero_endereco_favorecido', 'numero_favorecido', 'endereco_numero', 'numero_endereco', 'numero'],
     complementoFavorecido: ['complemento_favorecido', 'endereco_complemento', 'complemento'],
@@ -381,31 +644,46 @@ async function execute(api) {
             continue;
         }
         const codigoBancoFavorecido = toStringValue(getFirstJsonValue(json, fieldPaths.codigoBancoFavorecido));
-        if (!codigoBancoFavorecido) {
+        const agenciaFavorecido = splitValueAndDigit(toStringValue(getFirstJsonValue(json, fieldPaths.agenciaFavorecido)), toStringValue(getFirstJsonValue(json, fieldPaths.agenciaDvFavorecido)));
+        const contaFavorecido = splitValueAndDigit(toStringValue(getFirstJsonValue(json, fieldPaths.contaFavorecido)), toStringValue(getFirstJsonValue(json, fieldPaths.contaDvFavorecido)));
+        const nomeFavorecido = toStringValue(getFirstJsonValue(json, fieldPaths.nomeFavorecido));
+        const missingTransferFields = [
+            codigoBancoFavorecido ? '' : 'Banco do Favorecido',
+            agenciaFavorecido.value ? '' : 'Agência do Favorecido',
+            contaFavorecido.value ? '' : 'Conta do Favorecido',
+            contaFavorecido.digit ? '' : 'DV Conta do Favorecido',
+            nomeFavorecido ? '' : 'Nome do Favorecido',
+            numeroInscricaoFavorecido ? '' : 'CPF/CNPJ do Favorecido',
+        ].filter(Boolean);
+        if (missingTransferFields.length > 0) {
             const availableKeys = listAvailableKeys(json).slice(0, 80).join(', ');
+            const message = getPaymentIdentificationMessage(json, missingTransferFields);
             if (ignorePaymentErrors) {
-                warn(warnings, index, 'Forma de Pagamento', 'Não foi encontrado código de barras nem banco do favorecido. Pagamento ignorado para evitar código de barras zerado. '
+                warn(warnings, index, 'Forma de Pagamento', `${message} `
                     + `Campos disponíveis: ${availableKeys || 'nenhum'}.`);
                 skippedPayments.push({
                     item: index + 1,
-                    reason: 'Forma de pagamento não identificada',
+                    reason: isPixLikePayment(json)
+                        ? 'PIX sem dados bancários completos'
+                        : 'Dados bancários incompletos',
+                    missingFields: missingTransferFields,
                 });
                 continue;
             }
             throw new Error(`Não foi possível identificar a forma de pagamento no item ${index + 1}. `
                 + 'Para boleto, informe um campo de código de barras/linha digitável, como codigo_barras_ficha_compensacao. '
-                + 'Para transferência, informe banco, agência, conta e CPF/CNPJ do favorecido. '
+                + `${message} `
                 + `Campos disponíveis no item: ${availableKeys || 'nenhum'}.`);
         }
         payments.push({
             codigoBancoFavorecido: codigoBancoFavorecido,
-            agenciaFavorecido: requireOrFallback(toStringValue(getFirstJsonValue(json, fieldPaths.agenciaFavorecido)), 'Agência do Favorecido', index, ignorePaymentErrors, warnings),
-            agenciaDvFavorecido: toStringValue(getFirstJsonValue(json, fieldPaths.agenciaDvFavorecido)),
-            contaFavorecido: requireOrFallback(toStringValue(getFirstJsonValue(json, fieldPaths.contaFavorecido)), 'Conta do Favorecido', index, ignorePaymentErrors, warnings),
-            contaDvFavorecido: requireOrFallback(toStringValue(getFirstJsonValue(json, fieldPaths.contaDvFavorecido)), 'DV Conta do Favorecido', index, ignorePaymentErrors, warnings),
-            nomeFavorecido: requireOrFallback(toStringValue(getFirstJsonValue(json, fieldPaths.nomeFavorecido)), 'Nome do Favorecido', index, ignorePaymentErrors, warnings),
+            agenciaFavorecido: agenciaFavorecido.value,
+            agenciaDvFavorecido: agenciaFavorecido.digit,
+            contaFavorecido: contaFavorecido.value,
+            contaDvFavorecido: contaFavorecido.digit,
+            nomeFavorecido,
             tipoInscricaoFavorecido: detectTipoInscricao(numeroInscricaoFavorecido, tipoInscricaoFavorecidoDefault),
-            numeroInscricaoFavorecido: requireOrFallback(numeroInscricaoFavorecido, 'CPF/CNPJ do Favorecido', index, ignorePaymentErrors, warnings),
+            numeroInscricaoFavorecido,
             logradouroFavorecido: toStringValue(getFirstJsonValue(json, fieldPaths.logradouroFavorecido)),
             numeroEnderecoFavorecido: toStringValue(getFirstJsonValue(json, fieldPaths.numeroEnderecoFavorecido)),
             complementoFavorecido: toStringValue(getFirstJsonValue(json, fieldPaths.complementoFavorecido)),

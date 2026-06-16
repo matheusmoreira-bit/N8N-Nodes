@@ -42,7 +42,7 @@ export const descriptions: INodeProperties[] = [
         name: 'fetchDetailsFromOmie',
         type: 'boolean',
         default: true,
-        description: 'Consulta cada conta a pagar pelo código do lançamento antes de gerar o CNAB para tentar obter código de barras/linha digitável',
+        description: 'Consulta a conta a pagar e o cadastro do fornecedor no Omie antes de gerar o CNAB para tentar obter código de barras, linha digitável ou dados bancários',
         displayOptions,
     },
     {

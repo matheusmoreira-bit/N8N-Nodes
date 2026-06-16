@@ -17,6 +17,7 @@ export declare class OmieApi {
     getAccountPayable(params: IDataObject): Promise<IDataObject>;
     settleAccountPayable(data: IDataObject): Promise<IDataObject>;
     listSuppliers(params: IDataObject, returnAll?: boolean, maxItems?: number): Promise<IDataObject[]>;
+    getSupplier(params: IDataObject): Promise<IDataObject>;
     updateSupplier(data: IDataObject): Promise<IDataObject>;
     listItems(params: IDataObject, returnAll?: boolean, maxItems?: number): Promise<IDataObject[]>;
     updateItem(data: IDataObject): Promise<IDataObject>;

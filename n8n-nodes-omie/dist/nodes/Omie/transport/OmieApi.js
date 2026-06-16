@@ -127,6 +127,9 @@ class OmieApi {
         const response = await this.callMethod('geral/clientes/', 'ListarClientes', [params]);
         return this.getListResponse(response, ['clientes_cadastro']);
     }
+    async getSupplier(params) {
+        return this.callMethod('geral/clientes/', 'ConsultarCliente', [params]);
+    }
     async updateSupplier(data) {
         return this.callMethod('geral/clientes/', 'AlterarCliente', [data]);
     }
