@@ -10,10 +10,10 @@ const LAYOUT_LOTE_PIX = '046';
 const CAMARA_TED = '018';
 const CAMARA_PIX = '009';
 const BANCO_FAVORECIDO_PIX_CHAVE = '000';
-const TIPO_CHAVE_TELEFONE = '01';
-const TIPO_CHAVE_EMAIL = '02';
-const TIPO_CHAVE_CPF_CNPJ = '03';
-const TIPO_CHAVE_ALEATORIA = '04';
+const TIPO_CHAVE_TELEFONE = '001';
+const TIPO_CHAVE_EMAIL = '002';
+const TIPO_CHAVE_CPF_CNPJ = '003';
+const TIPO_CHAVE_ALEATORIA = '004';
 
 const firstJson = items[0]?.json ?? {};
 const CONFIG = {
@@ -230,7 +230,7 @@ function buildSegmentB(payment, batchNumber, sequence) {
     return line([
       BANCO_SICOOB, n(batchNumber, 4), '3', n(sequence, 5), 'B',
       // Manual CNAB 240 Sicoob/G100: forma de iniciacao PIX nas posicoes 15-17.
-      a(pixKeyType, 3),
+      n(pixKeyType, 3),
       n(payment.tipoInscricaoFavorecido, 1), n(payment.numeroInscricaoFavorecido, 14),
       // Manual CNAB 240 Sicoob/G101: Informacao 12 fica em branco para CPF/CNPJ; chave so para telefone/email/EVP.
       a(payment.txIdPix, 35), a('', 60), a(informacao12, 99),

@@ -397,18 +397,18 @@ function inferPixKeyType(value) {
     const trimmedValue = value.trim();
     const digits = onlyDigits(trimmedValue);
     if (digits.length === 11 || digits.length === 14) {
-        return '03';
+        return '003';
     }
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
-        return '02';
+        return '002';
     }
     if (/^\+?\d{10,13}$/.test(digits)) {
-        return '01';
+        return '001';
     }
     if (isUuidV4(trimmedValue)) {
-        return '04';
+        return '004';
     }
-    return '03';
+    return '003';
 }
 function isUuidV4(value) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
@@ -694,7 +694,7 @@ async function execute(api) {
             const transferDocument = onlyDigits(getFirstJsonValue(json, ['cnab_integracao_bancaria.cpf_cnpj_transferencia']));
             const rawChavePix = transferDocument;
             const tipoChavePix = inferPixKeyType(rawChavePix);
-            const pixDocument = numeroInscricaoFavorecido || (inferPixKeyType(rawChavePix) === '03' ? rawChavePix : '');
+            const pixDocument = numeroInscricaoFavorecido || (inferPixKeyType(rawChavePix) === '003' ? rawChavePix : '');
             const chavePix = rawChavePix || pixDocument;
             const nomeFavorecido = toStringValue(getFirstJsonValue(json, fieldPaths.nomeFavorecido));
             const missingPixFields = [
