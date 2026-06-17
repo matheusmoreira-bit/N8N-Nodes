@@ -9,6 +9,8 @@ import FormData from 'form-data';
 import { createHash } from 'crypto';
 import { AccesstageApiClient, AccesstageApiCredentials } from './transport/AccesstageApi';
 
+const ACCESSTAGE_UPLOAD_HASH_ALGORITHM = 'sha256';
+
 export class Accesstage implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Accesstage APUS',
@@ -109,7 +111,7 @@ export class Accesstage implements INodeType {
 					{ name: 'SHA256', value: 'sha256' },
 				],
 				default: 'sha256',
-				description: 'Hash sent in the multipart field named hash',
+				description: 'Hash sent in the multipart field named hash. Accesstage APUS validates uploads with SHA-256.',
 			},
 			{
 				displayName: 'File ID',
@@ -188,8 +190,8 @@ export class Accesstage implements INodeType {
 			if (operation === 'upload') {
 				const companyCode = this.getNodeParameter('companyCode', i) as string;
 				const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i) as string;
-				const configuredHashAlgorithm = this.getNodeParameter('hashAlgorithm', i, 'sha256') as string;
-				const hashAlgorithm = configuredHashAlgorithm === 'sha256' ? configuredHashAlgorithm : 'sha256';
+				const configuredHashAlgorithm = this.getNodeParameter('hashAlgorithm', i, ACCESSTAGE_UPLOAD_HASH_ALGORITHM) as string;
+				const hashAlgorithm = ACCESSTAGE_UPLOAD_HASH_ALGORITHM;
 				const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
 				const fileBuffer = await this.helpers.getBinaryDataBuffer(i, binaryData);
 				const hash = createHash(hashAlgorithm).update(fileBuffer).digest('hex');
@@ -211,6 +213,7 @@ export class Accesstage implements INodeType {
 						fileName,
 						size: fileBuffer.length,
 						hashAlgorithm,
+						configuredHashAlgorithm,
 						hash,
 						response,
 					},

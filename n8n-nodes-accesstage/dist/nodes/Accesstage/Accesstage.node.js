@@ -7,6 +7,7 @@ exports.Accesstage = void 0;
 const form_data_1 = __importDefault(require("form-data"));
 const crypto_1 = require("crypto");
 const AccesstageApi_1 = require("./transport/AccesstageApi");
+const ACCESSTAGE_UPLOAD_HASH_ALGORITHM = 'sha256';
 class Accesstage {
     constructor() {
         this.description = {
@@ -108,7 +109,7 @@ class Accesstage {
                         { name: 'SHA256', value: 'sha256' },
                     ],
                     default: 'sha256',
-                    description: 'Hash sent in the multipart field named hash',
+                    description: 'Hash sent in the multipart field named hash. Accesstage APUS validates uploads with SHA-256.',
                 },
                 {
                     displayName: 'File ID',
@@ -187,8 +188,8 @@ class Accesstage {
             if (operation === 'upload') {
                 const companyCode = this.getNodeParameter('companyCode', i);
                 const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i);
-                const configuredHashAlgorithm = this.getNodeParameter('hashAlgorithm', i, 'sha256');
-                const hashAlgorithm = configuredHashAlgorithm === 'sha256' ? configuredHashAlgorithm : 'sha256';
+                const configuredHashAlgorithm = this.getNodeParameter('hashAlgorithm', i, ACCESSTAGE_UPLOAD_HASH_ALGORITHM);
+                const hashAlgorithm = ACCESSTAGE_UPLOAD_HASH_ALGORITHM;
                 const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
                 const fileBuffer = await this.helpers.getBinaryDataBuffer(i, binaryData);
                 const hash = (0, crypto_1.createHash)(hashAlgorithm).update(fileBuffer).digest('hex');
@@ -208,6 +209,7 @@ class Accesstage {
                         fileName,
                         size: fileBuffer.length,
                         hashAlgorithm,
+                        configuredHashAlgorithm,
                         hash,
                         response,
                     },
