@@ -10,10 +10,10 @@ const LAYOUT_LOTE_PIX = '046';
 const CAMARA_TED = '018';
 const CAMARA_PIX = '009';
 const BANCO_FAVORECIDO_PIX_CHAVE = '000';
-const TIPO_CHAVE_TELEFONE = '001';
-const TIPO_CHAVE_EMAIL = '002';
-const TIPO_CHAVE_CPF_CNPJ = '003';
-const TIPO_CHAVE_ALEATORIA = '004';
+const TIPO_CHAVE_TELEFONE = '01';
+const TIPO_CHAVE_EMAIL = '02';
+const TIPO_CHAVE_CPF_CNPJ = '03';
+const TIPO_CHAVE_ALEATORIA = '04';
 
 const firstJson = items[0]?.json ?? {};
 const CONFIG = {
@@ -214,7 +214,7 @@ function buildSegmentA(payment, batchNumber, sequence) {
     isPix ? CAMARA_PIX : CAMARA_TED,
     isPix ? BANCO_FAVORECIDO_PIX_CHAVE : n(payment.codigoBancoFavorecido, 3),
     isPix ? n(0, 5) : n(payment.agenciaFavorecido, 5), isPix ? a('', 1) : a(payment.agenciaDvFavorecido, 1),
-    isPix ? accountWithDv('', '') : accountWithDv(payment.contaFavorecido, payment.contaDvFavorecido),
+    isPix ? accountWithDv('', '0') : accountWithDv(payment.contaFavorecido, payment.contaDvFavorecido),
     a('', 1), a(payment.nomeFavorecido, 30), a(payment.seuNumero, 20), date(payment.dataPagamento), 'BRL',
     n(0, 15), amount(payment.valor), a(payment.numeroDocumento, 20), n(0, 8), amount(0),
     a('', 40), a('', 2), n(0, 5), a('', 5), n(0, 1), a('', 10),
@@ -223,14 +223,18 @@ function buildSegmentA(payment, batchNumber, sequence) {
 
 function buildSegmentB(payment, batchNumber, sequence) {
   if (isPixPayment(payment)) {
+    const pixKeyType = normalizePixKeyType(payment.tipoChavePix);
+    const pixKey = normalizePixKey(payment.chavePix, pixKeyType);
+    const informacao12 = pixKeyType === TIPO_CHAVE_CPF_CNPJ ? '' : pixKey;
+
     return line([
       BANCO_SICOOB, n(batchNumber, 4), '3', n(sequence, 5), 'B',
       // Manual CNAB 240 Sicoob/G100: forma de iniciacao PIX nas posicoes 15-17.
-      n(normalizePixKeyType(payment.tipoChavePix), 3),
+      a(pixKeyType, 3),
       n(payment.tipoInscricaoFavorecido, 1), n(payment.numeroInscricaoFavorecido, 14),
-      // Manual CNAB 240 Sicoob/G101: TXID posicoes 33-67 e chave PIX posicoes 128-162.
-      a(payment.txIdPix, 35), a('', 60), a(normalizePixKey(payment.chavePix, payment.tipoChavePix), 35),
-      n(0, 6), a('', 72),
+      // Manual CNAB 240 Sicoob/G101: Informacao 12 fica em branco para CPF/CNPJ; chave so para telefone/email/EVP.
+      a(payment.txIdPix, 35), a('', 60), a(informacao12, 99),
+      a('', 6), a('', 8),
     ]);
   }
 

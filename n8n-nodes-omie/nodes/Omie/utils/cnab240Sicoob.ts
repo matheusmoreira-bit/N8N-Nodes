@@ -63,10 +63,10 @@ const LAYOUT_LOTE_PIX = '046';
 const CAMARA_TED = '018';
 const CAMARA_PIX = '009';
 const BANCO_FAVORECIDO_PIX_CHAVE = '000';
-const TIPO_CHAVE_TELEFONE = '001';
-const TIPO_CHAVE_EMAIL = '002';
-const TIPO_CHAVE_CPF_CNPJ = '003';
-const TIPO_CHAVE_ALEATORIA = '004';
+const TIPO_CHAVE_TELEFONE = '01';
+const TIPO_CHAVE_EMAIL = '02';
+const TIPO_CHAVE_CPF_CNPJ = '03';
+const TIPO_CHAVE_ALEATORIA = '04';
 
 type BatchKind = 'standard' | 'pix';
 
@@ -224,7 +224,7 @@ function buildSegmentA(payment: Cnab240SicoobPaymentData, batchNumber: number, s
         isPix ? BANCO_FAVORECIDO_PIX_CHAVE : numeric(payment.codigoBancoFavorecido, 3),
         isPix ? numeric(0, 5) : numeric(payment.agenciaFavorecido, 5),
         isPix ? alpha('', 1) : alpha(payment.agenciaDvFavorecido, 1),
-        isPix ? accountWithDv('', '') : accountWithDv(payment.contaFavorecido, payment.contaDvFavorecido),
+        isPix ? accountWithDv('', '0') : accountWithDv(payment.contaFavorecido, payment.contaDvFavorecido),
         alpha('', 1),
         alpha(payment.nomeFavorecido, 30),
         alpha(payment.seuNumero, 20),
@@ -276,6 +276,7 @@ function buildSegmentB(payment: Cnab240SicoobPaymentData, batchNumber: number, s
     if (isPixPayment(payment)) {
         const tipoChavePix = normalizeTipoChavePix(payment.tipoChavePix);
         const chavePix = normalizePixKey(payment);
+        const informacao12 = tipoChavePix === TIPO_CHAVE_CPF_CNPJ ? '' : chavePix;
 
         return buildLine([
             BANCO_SICOOB,
@@ -284,16 +285,16 @@ function buildSegmentB(payment: Cnab240SicoobPaymentData, batchNumber: number, s
             numeric(sequence, 5),
             'B',
             // Manual CNAB 240 Sicoob, Segmento B/G100: forma de iniciação PIX nas posições 15-17.
-            numeric(tipoChavePix, 3),
+            alpha(tipoChavePix, 3),
             numeric(payment.tipoInscricaoFavorecido, 1),
             numeric(payment.numeroInscricaoFavorecido, 14),
             // Manual CNAB 240 Sicoob, Segmento B/G101: TXID nas posições 33-67.
             alpha(payment.txIdPix, 35),
             alpha('', 60),
-            // Manual CNAB 240 Sicoob, Segmento B/G101: chave PIX nas posições 128-162.
-            alpha(chavePix, 35),
-            numeric(0, 6),
-            alpha('', 72),
+            // Manual CNAB 240 Sicoob, Segmento B/G101: Informação 12 fica em branco para CPF/CNPJ.
+            alpha(informacao12, 99),
+            alpha('', 6),
+            alpha('', 8),
         ]);
     }
 

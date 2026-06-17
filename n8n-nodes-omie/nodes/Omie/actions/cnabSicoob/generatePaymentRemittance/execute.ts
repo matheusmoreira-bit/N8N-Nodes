@@ -516,22 +516,22 @@ function inferPixKeyType(value: string): string {
     const digits = onlyDigits(trimmedValue);
 
     if (digits.length === 11 || digits.length === 14) {
-        return '003';
+        return '03';
     }
 
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
-        return '002';
+        return '02';
     }
 
     if (/^\+?\d{10,13}$/.test(digits)) {
-        return '001';
+        return '01';
     }
 
     if (isUuidV4(trimmedValue)) {
-        return '004';
+        return '04';
     }
 
-    return '003';
+    return '03';
 }
 
 function isUuidV4(value: string): boolean {
@@ -844,7 +844,7 @@ export async function execute(this: IExecuteFunctions, api: OmieApi): Promise<IN
             const transferDocument = onlyDigits(getFirstJsonValue(json, ['cnab_integracao_bancaria.cpf_cnpj_transferencia']));
             const rawChavePix = transferDocument;
             const tipoChavePix = inferPixKeyType(rawChavePix);
-            const pixDocument = numeroInscricaoFavorecido || (inferPixKeyType(rawChavePix) === '003' ? rawChavePix : '');
+            const pixDocument = numeroInscricaoFavorecido || (inferPixKeyType(rawChavePix) === '03' ? rawChavePix : '');
             const chavePix = rawChavePix || pixDocument;
             const nomeFavorecido = toStringValue(getFirstJsonValue(json, fieldPaths.nomeFavorecido));
             const missingPixFields = [
