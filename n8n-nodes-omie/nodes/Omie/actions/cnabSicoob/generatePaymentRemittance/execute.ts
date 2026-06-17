@@ -479,20 +479,20 @@ async function enrichPayablesWithOmieDetails(
 }
 
 function isPixLikePayment(json: IDataObject): boolean {
+    const tipoPagamento = toStringValue(getFirstJsonValue(json, fieldPaths.tipoPagamento)).toUpperCase();
     const tipoDocumento = toStringValue(getFirstJsonValue(json, fieldPaths.tipoDocumento)).toUpperCase();
-    const formaPagamento = toStringValue(getFirstJsonValue(json, fieldPaths.codigoFormaPagamento)).toUpperCase();
-    const chavePix = toStringValue(getFirstJsonValue(json, fieldPaths.chavePix));
 
-    return tipoDocumento.includes('PIX')
-        || formaPagamento.includes('PIX')
-        || Boolean(chavePix);
+    return tipoPagamento === 'PIX'
+        || tipoDocumento === 'PIX';
 }
 
 function getPaymentIdentificationMessage(json: IDataObject, missingFields: string[]): string {
+    const tipoPagamento = toStringValue(getFirstJsonValue(json, fieldPaths.tipoPagamento));
     const tipoDocumento = toStringValue(getFirstJsonValue(json, fieldPaths.tipoDocumento));
     const formaPagamento = toStringValue(getFirstJsonValue(json, fieldPaths.codigoFormaPagamento));
     const chavePix = toStringValue(getFirstJsonValue(json, fieldPaths.chavePix));
     const details = [
+        tipoPagamento ? `tipo de pagamento: ${tipoPagamento}` : '',
         tipoDocumento ? `tipo de documento: ${tipoDocumento}` : '',
         formaPagamento ? `forma de pagamento: ${formaPagamento}` : '',
         chavePix ? 'chave Pix encontrada' : '',
@@ -509,6 +509,37 @@ function getPaymentIdentificationMessage(json: IDataObject, missingFields: strin
 
     return 'Não foi encontrado código de barras nem dados bancários completos do favorecido. Pagamento ignorado para evitar código de barras zerado ou conta bancária inválida.'
         + missingText;
+}
+
+function inferPixKeyType(value: string): string {
+    const trimmedValue = value.trim();
+    const digits = onlyDigits(trimmedValue);
+
+    if (digits.length === 11 || digits.length === 14) {
+        return '003';
+    }
+
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
+        return '002';
+    }
+
+    if (/^\+?\d{10,13}$/.test(digits)) {
+        return '001';
+    }
+
+    if (isUuidV4(trimmedValue)) {
+        return '004';
+    }
+
+    return '003';
+}
+
+function isUuidV4(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+function getPaymentAmount(json: IDataObject): number {
+    return parseAmount(getFirstJsonValue(json, fieldPaths.valor));
 }
 
 const fieldPaths = {
@@ -646,6 +677,30 @@ const fieldPaths = {
         'dadosBancarios.chave_pix',
         'dadosBancarios.cChavePix',
     ]),
+    tipoChavePix: withSupplierPaths([
+        'cnab_integracao_bancaria.tipo_chave_pix',
+        'cnab_integracao_bancaria.tipo_pix',
+        'tipo_chave_pix',
+        'tipo_pix',
+        'pix_tipo_chave',
+        'dados_bancarios.tipo_chave_pix',
+        'dadosBancarios.tipo_chave_pix',
+    ]),
+    txIdPix: [
+        'cnab_integracao_bancaria.txid',
+        'cnab_integracao_bancaria.tx_id',
+        'txid',
+        'tx_id',
+        'pix_txid',
+        'id_conciliacao',
+        'id_conciliacao_pix',
+    ],
+    tipoPagamento: [
+        'tipoPagamento',
+        'tipo_pagamento',
+        'pagamento.tipoPagamento',
+        'pagamento.tipo_pagamento',
+    ],
     tipoDocumento: ['codigo_tipo_documento', 'tipo_documento', 'documento_tipo'],
     codigoFormaPagamento: [
         'cnab_integracao_bancaria.codigo_forma_pagamento',
@@ -707,7 +762,7 @@ export async function execute(this: IExecuteFunctions, api: OmieApi): Promise<IN
         const numeroInscricaoFavorecido = toStringValue(getFirstJsonValue(json, fieldPaths.numeroInscricaoFavorecido));
         const dataPagamento = toStringValue(getFirstJsonValue(json, fieldPaths.dataPagamento));
         const rawValor = getFirstJsonValue(json, fieldPaths.valor);
-        let valor = parseAmount(rawValor);
+        let valor = getPaymentAmount(json);
 
         if (valor <= 0) {
             const availableKeys = listAvailableKeys(json).slice(0, 80).join(', ');
@@ -769,6 +824,69 @@ export async function execute(this: IExecuteFunctions, api: OmieApi): Promise<IN
                 nomePagador: company.nome,
                 tipoInscricaoPagador: company.tipoInscricao,
                 numeroInscricaoPagador: company.numeroInscricao,
+                logradouroFavorecido: '',
+                numeroEnderecoFavorecido: '',
+                complementoFavorecido: '',
+                bairroFavorecido: '',
+                cidadeFavorecido: '',
+                cepFavorecido: '',
+                ufFavorecido: '',
+                dataPagamento: requireOrFallback(dataPagamento, 'Data de Pagamento', index, ignorePaymentErrors, warnings),
+                dataVencimento: toStringValue(getFirstJsonValue(json, fieldPaths.dataVencimento, dataPagamento)),
+                valor,
+                numeroDocumento: toStringValue(getFirstJsonValue(json, fieldPaths.numeroDocumento, getFirstJsonValue(json, fieldPaths.seuNumero))),
+                seuNumero: toStringValue(getFirstJsonValue(json, fieldPaths.seuNumero, getFirstJsonValue(json, fieldPaths.numeroDocumento))),
+            });
+            continue;
+        }
+
+        if (isPixLikePayment(json)) {
+            const transferDocument = onlyDigits(getFirstJsonValue(json, ['cnab_integracao_bancaria.cpf_cnpj_transferencia']));
+            const rawChavePix = transferDocument;
+            const tipoChavePix = inferPixKeyType(rawChavePix);
+            const pixDocument = numeroInscricaoFavorecido || (inferPixKeyType(rawChavePix) === '003' ? rawChavePix : '');
+            const chavePix = rawChavePix || pixDocument;
+            const nomeFavorecido = toStringValue(getFirstJsonValue(json, fieldPaths.nomeFavorecido));
+            const missingPixFields = [
+                chavePix ? '' : 'Chave Pix',
+                pixDocument ? '' : 'CPF/CNPJ do Favorecido',
+                nomeFavorecido ? '' : 'Nome do Favorecido',
+            ].filter(Boolean);
+
+            if (missingPixFields.length > 0) {
+                const availableKeys = listAvailableKeys(json).slice(0, 80).join(', ');
+                const message = `Pagamento identificado como PIX, mas não há dados suficientes para gerar PIX por chave. Campos faltantes: ${missingPixFields.join(', ')}.`;
+                if (ignorePaymentErrors) {
+                    warn(
+                        warnings,
+                        index,
+                        'PIX',
+                        `${message} Campos disponíveis: ${availableKeys || 'nenhum'}.`,
+                    );
+                    skippedPayments.push({
+                        item: index + 1,
+                        reason: 'PIX sem chave ou identificação do favorecido',
+                        missingFields: missingPixFields,
+                    });
+                    continue;
+                }
+
+                throw new Error(`${message} Campos disponíveis no item: ${availableKeys || 'nenhum'}.`);
+            }
+
+            payments.push({
+                tipoPagamento: 'PIX',
+                tipoChavePix,
+                chavePix,
+                txIdPix: toStringValue(getFirstJsonValue(json, fieldPaths.txIdPix)),
+                codigoBancoFavorecido: '',
+                agenciaFavorecido: '',
+                agenciaDvFavorecido: '',
+                contaFavorecido: '',
+                contaDvFavorecido: '',
+                nomeFavorecido,
+                tipoInscricaoFavorecido: detectTipoInscricao(pixDocument, tipoInscricaoFavorecidoDefault),
+                numeroInscricaoFavorecido: pixDocument,
                 logradouroFavorecido: '',
                 numeroEnderecoFavorecido: '',
                 complementoFavorecido: '',

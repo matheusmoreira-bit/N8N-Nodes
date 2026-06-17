@@ -2,6 +2,19 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildCnab240SicoobPaymentRemittance = buildCnab240SicoobPaymentRemittance;
 exports.getJsonValue = getJsonValue;
+const BANCO_SICOOB = '756';
+const TIPO_SERVICO_PAGAMENTO_FORNECEDOR = '20';
+const FORMA_LANCAMENTO_TED = '41';
+const FORMA_LANCAMENTO_PIX = '45';
+const LAYOUT_LOTE_PAGAMENTO_FORNECEDOR = '045';
+const LAYOUT_LOTE_PIX = '046';
+const CAMARA_TED = '018';
+const CAMARA_PIX = '009';
+const BANCO_FAVORECIDO_PIX_CHAVE = '000';
+const TIPO_CHAVE_TELEFONE = '001';
+const TIPO_CHAVE_EMAIL = '002';
+const TIPO_CHAVE_CPF_CNPJ = '003';
+const TIPO_CHAVE_ALEATORIA = '004';
 function onlyDigits(value) {
     return `${value ?? ''}`.replace(/\D/g, '');
 }
@@ -58,7 +71,7 @@ function accountWithDv(account, dv) {
 }
 function buildFileHeader(company, generationDate, fileSequence) {
     return buildLine([
-        '756',
+        BANCO_SICOOB,
         '0000',
         '0',
         alpha('', 9),
@@ -81,15 +94,27 @@ function buildFileHeader(company, generationDate, fileSequence) {
         alpha('', 69),
     ]);
 }
-function buildBatchHeader(company) {
+function isPixPayment(payment) {
+    return `${payment.tipoPagamento ?? ''}`.trim().toUpperCase() === 'PIX'
+        || Boolean(`${payment.tipoChavePix ?? ''}`.trim())
+        || Boolean(`${payment.chavePix ?? ''}`.trim());
+}
+function getBatchKind(payment) {
+    if (!payment.codigoBarras && isPixPayment(payment)) {
+        return 'pix';
+    }
+    return 'standard';
+}
+function buildBatchHeader(company, batchNumber, kind) {
+    const isPixBatch = kind === 'pix';
     return buildLine([
-        '756',
-        '0001',
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
         '1',
         'C',
-        '20',
-        '41',
-        '045',
+        TIPO_SERVICO_PAGAMENTO_FORNECEDOR,
+        isPixBatch ? FORMA_LANCAMENTO_PIX : FORMA_LANCAMENTO_TED,
+        isPixBatch ? LAYOUT_LOTE_PIX : LAYOUT_LOTE_PAGAMENTO_FORNECEDOR,
         alpha('', 1),
         numeric(company.tipoInscricao, 1),
         numeric(company.numeroInscricao, 14),
@@ -110,19 +135,21 @@ function buildBatchHeader(company) {
         alpha('', 10),
     ]);
 }
-function buildSegmentA(payment, sequence) {
+function buildSegmentA(payment, batchNumber, sequence) {
+    const isPix = isPixPayment(payment);
     return buildLine([
-        '756',
-        '0001',
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
         '3',
         numeric(sequence, 5),
         'A',
         '000',
-        '018',
-        numeric(payment.codigoBancoFavorecido, 3),
-        numeric(payment.agenciaFavorecido, 5),
-        alpha(payment.agenciaDvFavorecido, 1),
-        accountWithDv(payment.contaFavorecido, payment.contaDvFavorecido),
+        // Manual CNAB 240 Sicoob, Segmento A/P001: 009 = Pix (SPI), 018 = TED (STR/CIP).
+        isPix ? CAMARA_PIX : CAMARA_TED,
+        isPix ? BANCO_FAVORECIDO_PIX_CHAVE : numeric(payment.codigoBancoFavorecido, 3),
+        isPix ? numeric(0, 5) : numeric(payment.agenciaFavorecido, 5),
+        isPix ? alpha('', 1) : alpha(payment.agenciaDvFavorecido, 1),
+        isPix ? accountWithDv('', '') : accountWithDv(payment.contaFavorecido, payment.contaDvFavorecido),
         alpha('', 1),
         alpha(payment.nomeFavorecido, 30),
         alpha(payment.seuNumero, 20),
@@ -141,10 +168,56 @@ function buildSegmentA(payment, sequence) {
         alpha('', 10),
     ]);
 }
-function buildSegmentB(payment, sequence) {
+function normalizeTipoChavePix(value) {
+    const normalized = `${value ?? ''}`.trim().toUpperCase();
+    if (['1', '01', '001', 'TELEFONE', 'PHONE'].includes(normalized)) {
+        return TIPO_CHAVE_TELEFONE;
+    }
+    if (['2', '02', '002', 'EMAIL', 'E-MAIL'].includes(normalized)) {
+        return TIPO_CHAVE_EMAIL;
+    }
+    if (['3', '03', '003', 'CPF', 'CNPJ', 'CPF_CNPJ', 'CPF/CNPJ'].includes(normalized)) {
+        return TIPO_CHAVE_CPF_CNPJ;
+    }
+    if (['4', '04', '004', 'EVP', 'ALEATORIA', 'ALEATÓRIA', 'RANDOM'].includes(normalized)) {
+        return TIPO_CHAVE_ALEATORIA;
+    }
+    return TIPO_CHAVE_CPF_CNPJ;
+}
+function normalizePixKey(payment) {
+    const tipoChavePix = normalizeTipoChavePix(payment.tipoChavePix);
+    const rawKey = `${payment.chavePix || payment.numeroInscricaoFavorecido || ''}`.trim();
+    if (tipoChavePix === TIPO_CHAVE_CPF_CNPJ || tipoChavePix === TIPO_CHAVE_TELEFONE) {
+        return onlyDigits(rawKey);
+    }
+    return rawKey;
+}
+function buildSegmentB(payment, batchNumber, sequence) {
+    if (isPixPayment(payment)) {
+        const tipoChavePix = normalizeTipoChavePix(payment.tipoChavePix);
+        const chavePix = normalizePixKey(payment);
+        return buildLine([
+            BANCO_SICOOB,
+            numeric(batchNumber, 4),
+            '3',
+            numeric(sequence, 5),
+            'B',
+            // Manual CNAB 240 Sicoob, Segmento B/G100: forma de iniciação PIX nas posições 15-17.
+            numeric(tipoChavePix, 3),
+            numeric(payment.tipoInscricaoFavorecido, 1),
+            numeric(payment.numeroInscricaoFavorecido, 14),
+            // Manual CNAB 240 Sicoob, Segmento B/G101: TXID nas posições 33-67.
+            alpha(payment.txIdPix, 35),
+            alpha('', 60),
+            // Manual CNAB 240 Sicoob, Segmento B/G101: chave PIX nas posições 128-162.
+            alpha(chavePix, 35),
+            numeric(0, 6),
+            alpha('', 72),
+        ]);
+    }
     return buildLine([
-        '756',
-        '0001',
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
         '3',
         numeric(sequence, 5),
         'B',
@@ -168,10 +241,10 @@ function buildSegmentB(payment, sequence) {
         alpha('', 15),
     ]);
 }
-function buildSegmentJ(payment, sequence) {
+function buildSegmentJ(payment, batchNumber, sequence) {
     return buildLine([
-        '756',
-        '0001',
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
         '3',
         numeric(sequence, 5),
         'J',
@@ -192,13 +265,13 @@ function buildSegmentJ(payment, sequence) {
         alpha('', 10),
     ]);
 }
-function buildSegmentJ52(payment, company, sequence) {
+function buildSegmentJ52(payment, company, batchNumber, sequence) {
     const tipoInscricaoPagador = payment.tipoInscricaoPagador || company.tipoInscricao;
     const numeroInscricaoPagador = payment.numeroInscricaoPagador || company.numeroInscricao;
     const nomePagador = payment.nomePagador || company.nome;
     return buildLine([
-        '756',
-        '0001',
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
         '3',
         numeric(sequence, 5),
         'J',
@@ -219,12 +292,12 @@ function buildSegmentJ52(payment, company, sequence) {
 function getRecordCount(payments) {
     return payments.length * 2;
 }
-function buildBatchTrailer(payments) {
+function buildBatchTrailer(payments, batchNumber) {
     const recordCount = getRecordCount(payments) + 2;
     const totalAmount = payments.reduce((total, payment) => total + (Number(payment.valor) || 0), 0);
     return buildLine([
-        '756',
-        '0001',
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
         '5',
         alpha('', 9),
         numeric(recordCount, 6),
@@ -234,42 +307,58 @@ function buildBatchTrailer(payments) {
         alpha('', 175),
     ]);
 }
-function buildFileTrailer(payments) {
-    const recordCount = getRecordCount(payments) + 4;
+function buildFileTrailer(batchCount, recordCount) {
     return buildLine([
-        '756',
+        BANCO_SICOOB,
         '9999',
         '9',
         alpha('', 9),
-        numeric(1, 6),
+        numeric(batchCount, 6),
         numeric(recordCount, 6),
         numeric(0, 6),
         alpha('', 205),
     ]);
 }
+function groupPaymentsByBatchKind(payments) {
+    return payments.reduce((batches, payment) => {
+        const kind = getBatchKind(payment);
+        const existingBatch = batches.find((batch) => batch.kind === kind);
+        if (existingBatch) {
+            existingBatch.payments.push(payment);
+        }
+        else {
+            batches.push({ kind, payments: [payment] });
+        }
+        return batches;
+    }, []);
+}
 function buildCnab240SicoobPaymentRemittance(options) {
     if (options.payments.length === 0) {
         throw new Error('Nenhum pagamento informado para gerar a remessa CNAB 240 Sicoob.');
     }
+    const batches = groupPaymentsByBatchKind(options.payments);
     const lines = [
         buildFileHeader(options.company, options.generationDate, options.fileSequence),
-        buildBatchHeader(options.company),
     ];
-    let sequence = 1;
-    for (const payment of options.payments) {
-        if (payment.codigoBarras) {
-            lines.push(buildSegmentJ(payment, sequence));
-            lines.push(buildSegmentJ52(payment, options.company, sequence + 1));
-            sequence += 2;
+    for (const [batchIndex, batch] of batches.entries()) {
+        const batchNumber = batchIndex + 1;
+        lines.push(buildBatchHeader(options.company, batchNumber, batch.kind));
+        let sequence = 1;
+        for (const payment of batch.payments) {
+            if (payment.codigoBarras) {
+                lines.push(buildSegmentJ(payment, batchNumber, sequence));
+                lines.push(buildSegmentJ52(payment, options.company, batchNumber, sequence + 1));
+                sequence += 2;
+            }
+            else {
+                lines.push(buildSegmentA(payment, batchNumber, sequence));
+                lines.push(buildSegmentB(payment, batchNumber, sequence + 1));
+                sequence += 2;
+            }
         }
-        else {
-            lines.push(buildSegmentA(payment, sequence));
-            lines.push(buildSegmentB(payment, sequence + 1));
-            sequence += 2;
-        }
+        lines.push(buildBatchTrailer(batch.payments, batchNumber));
     }
-    lines.push(buildBatchTrailer(options.payments));
-    lines.push(buildFileTrailer(options.payments));
+    lines.push(buildFileTrailer(batches.length, lines.length + 1));
     return `${lines.join('\r\n')}\r\n`;
 }
 function getJsonValue(item, path, fallback = '') {

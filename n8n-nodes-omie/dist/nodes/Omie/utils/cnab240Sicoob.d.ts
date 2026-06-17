@@ -16,6 +16,10 @@ export interface Cnab240SicoobCompanyData {
 }
 export interface Cnab240SicoobPaymentData {
     codigoBarras?: string;
+    tipoPagamento?: string;
+    tipoChavePix?: string;
+    chavePix?: string;
+    txIdPix?: string;
     codigoBancoFavorecido: string;
     agenciaFavorecido: string;
     agenciaDvFavorecido: string;
