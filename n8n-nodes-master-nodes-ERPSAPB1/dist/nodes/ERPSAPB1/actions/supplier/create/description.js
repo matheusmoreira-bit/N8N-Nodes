@@ -83,7 +83,7 @@ exports.supplierCreateDescription = [
                 operation: ['create'],
             },
         },
-        description: 'Telefone principal do PN. Enviado ao SAP B1 como Phone1 junto com o DDD.',
+        description: 'Telefone principal do PN. Enviado ao SAP B1 como Phone1.',
     },
     {
         displayName: 'Nome Base do Endereço',
