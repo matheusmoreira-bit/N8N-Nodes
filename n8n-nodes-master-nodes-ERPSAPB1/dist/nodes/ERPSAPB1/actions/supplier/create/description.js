@@ -58,6 +58,34 @@ exports.supplierCreateDescription = [
         description: 'E-mail principal do PN. Enviado ao SAP B1 como EmailAddress.',
     },
     {
+        displayName: 'DDD',
+        name: 'phoneDdd',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+        description: 'DDD do telefone principal do PN.',
+    },
+    {
+        displayName: 'Telefone',
+        name: 'phone',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+        description: 'Telefone principal do PN. Enviado ao SAP B1 como Phone1 junto com o DDD.',
+    },
+    {
         displayName: 'Nome Base do Endereço',
         name: 'addressName',
         type: 'string',

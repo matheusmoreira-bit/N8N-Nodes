@@ -17,6 +17,14 @@ function normalizeText(value: unknown): string {
     return String(value).trim();
 }
 
+function normalizeDigits(value: unknown): string {
+    return extractDigitsFromString(normalizeText(value));
+}
+
+function hasValue(value: unknown): boolean {
+    return normalizeText(value).length > 0;
+}
+
 function hasAnyAddressValue(address: IDataObject): boolean {
     return Object.entries(address).some(([key, value]) => key !== 'Country' && typeof value === 'string' && value.trim().length > 0);
 }
@@ -45,6 +53,9 @@ export async function create(this: IExecuteFunctions, api: ERPSAPB1Api, index: n
     const cardName = normalizeText(this.getNodeParameter('cardName', index, ''));
     const cnpj = extractDigitsFromString(this.getNodeParameter('cnpj', index, ''));
     const email = normalizeText(this.getNodeParameter('email', index, ''));
+    const phoneDdd = normalizeDigits(this.getNodeParameter('phoneDdd', index, ''));
+    const phone = normalizeDigits(this.getNodeParameter('phone', index, ''));
+    const phone1 = phoneDdd && phone ? `${phoneDdd}${phone}` : phone;
     const addressName = normalizeText(this.getNodeParameter('addressName', index, 'PRINCIPAL')) || 'PRINCIPAL';
     const street = normalizeText(this.getNodeParameter('street', index, ''));
     const streetType = normalizeText(this.getNodeParameter('streetType', index, 'Rua'));
@@ -92,6 +103,7 @@ export async function create(this: IExecuteFunctions, api: ERPSAPB1Api, index: n
         FederalTaxID: cnpj || undefined,
         U_FGR_TAXID0: cnpj || undefined,
         EmailAddress: email || undefined,
+        Phone1: phone1 || undefined,
         BPAddresses: buildReplicatedAddresses(addressName, address),
     } as IDataObject, dynamicFields);
 
@@ -99,6 +111,21 @@ export async function create(this: IExecuteFunctions, api: ERPSAPB1Api, index: n
         throw new NodeOperationError(
             this.getNode(),
             'E-mail do PN é obrigatório para criar fornecedor no SAP B1. Preencha o campo E-mail ou informe EmailAddress em Campos Dinâmicos.',
+            { itemIndex: index },
+        );
+    }
+
+    const hasPhone = hasValue(supplier.Phone1) || hasValue(supplier.Phone2) || hasValue(supplier.Cellular);
+    const hasDdd = Boolean(phoneDdd)
+        || hasValue(supplier.DDD)
+        || hasValue(supplier.U_DDD)
+        || hasValue(supplier.U_FGR_DDD)
+        || /^\d{10,11}$/.test(normalizeDigits(supplier.Phone1));
+
+    if (!hasPhone || !hasDdd) {
+        throw new NodeOperationError(
+            this.getNode(),
+            'Telefone e DDD do PN são obrigatórios para criar fornecedor no SAP B1. Preencha DDD e Telefone ou informe Phone1 e o campo de DDD em Campos Dinâmicos.',
             { itemIndex: index },
         );
     }
