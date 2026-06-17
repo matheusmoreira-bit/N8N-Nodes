@@ -1,4 +1,5 @@
 import * as create from './create';
+import * as createFromReceita from './createFromReceita';
 import * as getByDocument from './getByDocument';
 import * as list from './list';
 import * as updateField from './updateField';
@@ -7,6 +8,7 @@ import { INodeProperties } from 'n8n-workflow';
 
 export {
     create,
+    createFromReceita,
     getByDocument,
     list,
     updateField,
@@ -30,6 +32,11 @@ export const descriptions: INodeProperties[] = [
                 name: 'Criar fornecedor',
                 value: 'create',
                 description: 'Cria um novo fornecedor no SAP.',
+            },
+            {
+                name: 'Criar fornecedor via Receita',
+                value: 'createFromReceita',
+                description: 'Consulta CNPJ em API pública e cria o fornecedor no SAP.',
             },
             {
                 name: 'Editar campo do fornecedor',
@@ -139,6 +146,7 @@ export const descriptions: INodeProperties[] = [
         description: 'Campos separados por vírgula para montar o parâmetro $select.',
     },
     ...create.description,
+    ...createFromReceita.description,
     ...updateField.description,
     ...getByDocument.description,
     ...list.description,

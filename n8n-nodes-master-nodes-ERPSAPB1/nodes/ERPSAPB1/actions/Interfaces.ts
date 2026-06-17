@@ -11,7 +11,7 @@ type ERPSAPB1Map = {
     inclusion: 'purchaseOrder' | 'manualJournalEntry' | 'vendorPayment',
     item: 'create' | 'createGroup' | 'updateField',
     serverFiles: 'list' | 'download',
-    supplier: 'getByDocument' | 'list' | 'create' | 'updateField',
+    supplier: 'getByDocument' | 'list' | 'create' | 'createFromReceita' | 'updateField',
 };
 
 export type ERPSAPB1 = AllEntities<ERPSAPB1Map>;

@@ -9,6 +9,27 @@ interface IDynamicFieldParameter {
     dynamicFields?: IDynamicField[];
 }
 
+export interface ISupplierCreateInput {
+    cardCode?: string;
+    cardName: string;
+    cnpj?: string;
+    email?: string;
+    phoneDdd?: string;
+    phone?: string;
+    addressName?: string;
+    street?: string;
+    streetType?: string;
+    streetNo?: string;
+    block?: string;
+    buildingFloorRoom?: string;
+    city?: string;
+    county?: string;
+    zipCode?: string;
+    state?: string;
+    country?: string;
+    dynamicFields?: IDynamicField[];
+}
+
 function normalizeText(value: unknown): string {
     if (value === null || value === undefined) {
         return '';
@@ -49,24 +70,56 @@ function buildReplicatedAddresses(baseAddressName: string, address: IDataObject)
 }
 
 export async function create(this: IExecuteFunctions, api: ERPSAPB1Api, index: number): Promise<INodeExecutionData[]> {
-    const cardCode = normalizeText(this.getNodeParameter('cardCode', index, ''));
-    const cardName = normalizeText(this.getNodeParameter('cardName', index, ''));
-    const cnpj = extractDigitsFromString(this.getNodeParameter('cnpj', index, ''));
-    const email = normalizeText(this.getNodeParameter('email', index, ''));
-    const phoneDdd = normalizeDigits(this.getNodeParameter('phoneDdd', index, ''));
-    const phone = normalizeDigits(this.getNodeParameter('phone', index, ''));
-    const addressName = normalizeText(this.getNodeParameter('addressName', index, 'PRINCIPAL')) || 'PRINCIPAL';
-    const street = normalizeText(this.getNodeParameter('street', index, ''));
-    const streetType = normalizeText(this.getNodeParameter('streetType', index, 'Rua'));
-    const streetNo = normalizeText(this.getNodeParameter('streetNo', index, ''));
-    const block = normalizeText(this.getNodeParameter('block', index, ''));
-    const buildingFloorRoom = normalizeText(this.getNodeParameter('buildingFloorRoom', index, ''));
-    const city = normalizeText(this.getNodeParameter('city', index, ''));
-    const county = normalizeText(this.getNodeParameter('county', index, '')) || city;
-    const zipCode = normalizeText(this.getNodeParameter('zipCode', index, ''));
-    const state = normalizeText(this.getNodeParameter('state', index, ''));
-    const country = normalizeText(this.getNodeParameter('country', index, 'BR'));
     const { dynamicFields } = this.getNodeParameter('dynamicFields', index, {}) as IDynamicFieldParameter;
+
+    return createSupplierInSap.call(this, api, index, {
+        cardCode: normalizeText(this.getNodeParameter('cardCode', index, '')),
+        cardName: normalizeText(this.getNodeParameter('cardName', index, '')),
+        cnpj: extractDigitsFromString(this.getNodeParameter('cnpj', index, '')),
+        email: normalizeText(this.getNodeParameter('email', index, '')),
+        phoneDdd: normalizeDigits(this.getNodeParameter('phoneDdd', index, '')),
+        phone: normalizeDigits(this.getNodeParameter('phone', index, '')),
+        addressName: normalizeText(this.getNodeParameter('addressName', index, 'PRINCIPAL')) || 'PRINCIPAL',
+        street: normalizeText(this.getNodeParameter('street', index, '')),
+        streetType: normalizeText(this.getNodeParameter('streetType', index, 'Rua')),
+        streetNo: normalizeText(this.getNodeParameter('streetNo', index, '')),
+        block: normalizeText(this.getNodeParameter('block', index, '')),
+        buildingFloorRoom: normalizeText(this.getNodeParameter('buildingFloorRoom', index, '')),
+        city: normalizeText(this.getNodeParameter('city', index, '')),
+        county: normalizeText(this.getNodeParameter('county', index, '')),
+        zipCode: normalizeText(this.getNodeParameter('zipCode', index, '')),
+        state: normalizeText(this.getNodeParameter('state', index, '')),
+        country: normalizeText(this.getNodeParameter('country', index, 'BR')),
+        dynamicFields,
+    });
+}
+
+export async function createSupplierInSap(this: IExecuteFunctions, api: ERPSAPB1Api, index: number, input: ISupplierCreateInput): Promise<INodeExecutionData[]> {
+    const cardCode = normalizeText(input.cardCode);
+    const cardName = normalizeText(input.cardName);
+    const cnpj = extractDigitsFromString(input.cnpj);
+    const email = normalizeText(input.email);
+    const phoneDdd = normalizeDigits(input.phoneDdd);
+    const phone = normalizeDigits(input.phone);
+    const addressName = normalizeText(input.addressName) || 'PRINCIPAL';
+    const street = normalizeText(input.street);
+    const streetType = normalizeText(input.streetType) || 'Rua';
+    const streetNo = normalizeText(input.streetNo);
+    const block = normalizeText(input.block);
+    const buildingFloorRoom = normalizeText(input.buildingFloorRoom);
+    const city = normalizeText(input.city);
+    const county = normalizeText(input.county) || city;
+    const zipCode = normalizeText(input.zipCode);
+    const state = normalizeText(input.state);
+    const country = normalizeText(input.country) || 'BR';
+
+    if (!cardName) {
+        throw new NodeOperationError(
+            this.getNode(),
+            'Nome do fornecedor é obrigatório para criar PN no SAP B1. Preencha o nome manualmente ou verifique o retorno da API da Receita.',
+            { itemIndex: index },
+        );
+    }
 
     const address: IDataObject = {
         Street: street || undefined,
@@ -105,7 +158,7 @@ export async function create(this: IExecuteFunctions, api: ERPSAPB1Api, index: n
         Phone1: phone || undefined,
         Phone2: phoneDdd || undefined,
         BPAddresses: buildReplicatedAddresses(addressName, address),
-    } as IDataObject, dynamicFields);
+    } as IDataObject, input.dynamicFields);
 
     if (!normalizeText(supplier.EmailAddress)) {
         throw new NodeOperationError(

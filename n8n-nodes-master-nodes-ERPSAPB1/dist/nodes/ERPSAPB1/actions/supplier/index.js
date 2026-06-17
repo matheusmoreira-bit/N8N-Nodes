@@ -33,9 +33,11 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.descriptions = exports.updateField = exports.list = exports.getByDocument = exports.create = void 0;
+exports.descriptions = exports.updateField = exports.list = exports.getByDocument = exports.createFromReceita = exports.create = void 0;
 const create = __importStar(require("./create"));
 exports.create = create;
+const createFromReceita = __importStar(require("./createFromReceita"));
+exports.createFromReceita = createFromReceita;
 const getByDocument = __importStar(require("./getByDocument"));
 exports.getByDocument = getByDocument;
 const list = __importStar(require("./list"));
@@ -60,6 +62,11 @@ exports.descriptions = [
                 name: 'Criar fornecedor',
                 value: 'create',
                 description: 'Cria um novo fornecedor no SAP.',
+            },
+            {
+                name: 'Criar fornecedor via Receita',
+                value: 'createFromReceita',
+                description: 'Consulta CNPJ em API pública e cria o fornecedor no SAP.',
             },
             {
                 name: 'Editar campo do fornecedor',
@@ -169,6 +176,7 @@ exports.descriptions = [
         description: 'Campos separados por vírgula para montar o parâmetro $select.',
     },
     ...create.description,
+    ...createFromReceita.description,
     ...updateField.description,
     ...getByDocument.description,
     ...list.description,
