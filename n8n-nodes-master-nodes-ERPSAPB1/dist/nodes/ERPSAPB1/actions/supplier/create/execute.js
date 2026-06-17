@@ -36,6 +36,7 @@ async function create(api, index) {
     const cnpj = (0, text_1.extractDigitsFromString)(this.getNodeParameter('cnpj', index, ''));
     const addressName = normalizeText(this.getNodeParameter('addressName', index, 'PRINCIPAL')) || 'PRINCIPAL';
     const street = normalizeText(this.getNodeParameter('street', index, ''));
+    const streetType = normalizeText(this.getNodeParameter('streetType', index, 'Rua'));
     const streetNo = normalizeText(this.getNodeParameter('streetNo', index, ''));
     const block = normalizeText(this.getNodeParameter('block', index, ''));
     const buildingFloorRoom = normalizeText(this.getNodeParameter('buildingFloorRoom', index, ''));
@@ -56,7 +57,11 @@ async function create(api, index) {
         State: state || undefined,
         Country: country || undefined,
     };
-    if (hasAnyAddressValue(address) && !county) {
+    const hasAddress = hasAnyAddressValue(address);
+    if (hasAddress) {
+        address.TypeOfAddress = streetType || 'Rua';
+    }
+    if (hasAddress && !county) {
         throw new n8n_workflow_1.NodeOperationError(this.getNode(), 'Município do endereço é obrigatório para criar PN no SAP B1. Preencha o campo Município ou Cidade.', { itemIndex: index });
     }
     const resolvedCardCode = cardCode || await api.generateNextSupplierCardCode('F', 6);

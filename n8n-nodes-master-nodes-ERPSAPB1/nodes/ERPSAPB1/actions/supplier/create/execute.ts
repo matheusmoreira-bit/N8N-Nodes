@@ -46,6 +46,7 @@ export async function create(this: IExecuteFunctions, api: ERPSAPB1Api, index: n
     const cnpj = extractDigitsFromString(this.getNodeParameter('cnpj', index, ''));
     const addressName = normalizeText(this.getNodeParameter('addressName', index, 'PRINCIPAL')) || 'PRINCIPAL';
     const street = normalizeText(this.getNodeParameter('street', index, ''));
+    const streetType = normalizeText(this.getNodeParameter('streetType', index, 'Rua'));
     const streetNo = normalizeText(this.getNodeParameter('streetNo', index, ''));
     const block = normalizeText(this.getNodeParameter('block', index, ''));
     const buildingFloorRoom = normalizeText(this.getNodeParameter('buildingFloorRoom', index, ''));
@@ -67,8 +68,13 @@ export async function create(this: IExecuteFunctions, api: ERPSAPB1Api, index: n
         State: state || undefined,
         Country: country || undefined,
     };
+    const hasAddress = hasAnyAddressValue(address);
 
-    if (hasAnyAddressValue(address) && !county) {
+    if (hasAddress) {
+        address.TypeOfAddress = streetType || 'Rua';
+    }
+
+    if (hasAddress && !county) {
         throw new NodeOperationError(
             this.getNode(),
             'Município do endereço é obrigatório para criar PN no SAP B1. Preencha o campo Município ou Cidade.',

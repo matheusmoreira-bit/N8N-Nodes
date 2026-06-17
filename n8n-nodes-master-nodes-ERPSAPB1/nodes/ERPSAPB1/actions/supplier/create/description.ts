@@ -70,6 +70,20 @@ export const supplierCreateDescription: SupplierProperties = [
         },
     },
     {
+        displayName: 'Tipo de Logradouro',
+        name: 'streetType',
+        type: 'string',
+        default: 'Rua',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+        description: 'Tipo de logradouro do endereço no SAP B1. Ex.: Rua, Avenida, Alameda.',
+    },
+    {
         displayName: 'Número',
         name: 'streetNo',
         type: 'string',
