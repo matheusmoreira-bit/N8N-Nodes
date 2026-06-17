@@ -276,7 +276,7 @@ function buildSegmentB(payment: Cnab240SicoobPaymentData, batchNumber: number, s
     if (isPixPayment(payment)) {
         const tipoChavePix = normalizeTipoChavePix(payment.tipoChavePix);
         const chavePix = normalizePixKey(payment);
-        const informacao12 = tipoChavePix === TIPO_CHAVE_CPF_CNPJ ? '' : chavePix;
+        const informacao12 = chavePix;
 
         return buildLine([
             BANCO_SICOOB,
@@ -291,7 +291,7 @@ function buildSegmentB(payment: Cnab240SicoobPaymentData, batchNumber: number, s
             // Manual CNAB 240 Sicoob, Segmento B/G101: TXID nas posições 33-67.
             alpha(payment.txIdPix, 35),
             alpha('', 60),
-            // Manual CNAB 240 Sicoob, Segmento B/G101: Informação 12 fica em branco para CPF/CNPJ.
+            // Manual CNAB 240 Sicoob, Segmento B/G101: Informação 12 recebe somente a chave PIX, sem resíduos de outros campos.
             alpha(informacao12, 99),
             alpha('', 6),
             alpha('', 8),

@@ -225,14 +225,14 @@ function buildSegmentB(payment, batchNumber, sequence) {
   if (isPixPayment(payment)) {
     const pixKeyType = normalizePixKeyType(payment.tipoChavePix);
     const pixKey = normalizePixKey(payment.chavePix, pixKeyType);
-    const informacao12 = pixKeyType === TIPO_CHAVE_CPF_CNPJ ? '' : pixKey;
+    const informacao12 = pixKey;
 
     return line([
       BANCO_SICOOB, n(batchNumber, 4), '3', n(sequence, 5), 'B',
       // Manual CNAB 240 Sicoob/G100: forma de iniciacao PIX nas posicoes 15-17.
       n(pixKeyType, 3),
       n(payment.tipoInscricaoFavorecido, 1), n(payment.numeroInscricaoFavorecido, 14),
-      // Manual CNAB 240 Sicoob/G101: Informacao 12 fica em branco para CPF/CNPJ; chave so para telefone/email/EVP.
+      // Manual CNAB 240 Sicoob/G101: Informacao 12 recebe somente a chave PIX, sem residuos de outros campos.
       a(payment.txIdPix, 35), a('', 60), a(informacao12, 99),
       a('', 6), a('', 8),
     ]);
