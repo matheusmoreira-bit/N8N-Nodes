@@ -34,6 +34,7 @@ async function create(api, index) {
     const cardCode = normalizeText(this.getNodeParameter('cardCode', index, ''));
     const cardName = normalizeText(this.getNodeParameter('cardName', index, ''));
     const cnpj = (0, text_1.extractDigitsFromString)(this.getNodeParameter('cnpj', index, ''));
+    const email = normalizeText(this.getNodeParameter('email', index, ''));
     const addressName = normalizeText(this.getNodeParameter('addressName', index, 'PRINCIPAL')) || 'PRINCIPAL';
     const street = normalizeText(this.getNodeParameter('street', index, ''));
     const streetType = normalizeText(this.getNodeParameter('streetType', index, 'Rua'));
@@ -71,8 +72,12 @@ async function create(api, index) {
         CardType: 'cSupplier',
         FederalTaxID: cnpj || undefined,
         U_FGR_TAXID0: cnpj || undefined,
+        EmailAddress: email || undefined,
         BPAddresses: buildReplicatedAddresses(addressName, address),
     }, dynamicFields);
+    if (!normalizeText(supplier.EmailAddress)) {
+        throw new n8n_workflow_1.NodeOperationError(this.getNode(), 'E-mail do PN é obrigatório para criar fornecedor no SAP B1. Preencha o campo E-mail ou informe EmailAddress em Campos Dinâmicos.', { itemIndex: index });
+    }
     const createdSupplier = await api.createSupplier(supplier);
     return this.helpers.returnJsonArray([createdSupplier]);
 }

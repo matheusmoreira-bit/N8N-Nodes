@@ -43,6 +43,20 @@ export const supplierCreateDescription: SupplierProperties = [
         description: 'Opcional. Se informado, será replicado para FederalTaxID e U_FGR_TAXID0.',
     },
     {
+        displayName: 'E-mail',
+        name: 'email',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+        description: 'E-mail principal do PN. Enviado ao SAP B1 como EmailAddress.',
+    },
+    {
         displayName: 'Nome Base do Endereço',
         name: 'addressName',
         type: 'string',
