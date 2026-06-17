@@ -1,4 +1,4 @@
-import { IDataObject, IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
+import { IDataObject, IExecuteFunctions, INodeExecutionData, NodeOperationError } from 'n8n-workflow';
 
 import { ERPSAPB1Api } from '../../../transport/ERPSAPB1Api';
 import { IDynamicField } from '../../../transport/Interfaces';
@@ -18,7 +18,7 @@ function normalizeText(value: unknown): string {
 }
 
 function hasAnyAddressValue(address: IDataObject): boolean {
-    return Object.values(address).some((value) => typeof value === 'string' && value.trim().length > 0);
+    return Object.entries(address).some(([key, value]) => key !== 'Country' && typeof value === 'string' && value.trim().length > 0);
 }
 
 function buildReplicatedAddresses(baseAddressName: string, address: IDataObject): IDataObject[] {
@@ -50,6 +50,7 @@ export async function create(this: IExecuteFunctions, api: ERPSAPB1Api, index: n
     const block = normalizeText(this.getNodeParameter('block', index, ''));
     const buildingFloorRoom = normalizeText(this.getNodeParameter('buildingFloorRoom', index, ''));
     const city = normalizeText(this.getNodeParameter('city', index, ''));
+    const county = normalizeText(this.getNodeParameter('county', index, '')) || city;
     const zipCode = normalizeText(this.getNodeParameter('zipCode', index, ''));
     const state = normalizeText(this.getNodeParameter('state', index, ''));
     const country = normalizeText(this.getNodeParameter('country', index, 'BR'));
@@ -61,10 +62,19 @@ export async function create(this: IExecuteFunctions, api: ERPSAPB1Api, index: n
         Block: block || undefined,
         BuildingFloorRoom: buildingFloorRoom || undefined,
         City: city || undefined,
+        County: county || undefined,
         ZipCode: zipCode || undefined,
         State: state || undefined,
         Country: country || undefined,
     };
+
+    if (hasAnyAddressValue(address) && !county) {
+        throw new NodeOperationError(
+            this.getNode(),
+            'Município do endereço é obrigatório para criar PN no SAP B1. Preencha o campo Município ou Cidade.',
+            { itemIndex: index },
+        );
+    }
 
     const resolvedCardCode = cardCode || await api.generateNextSupplierCardCode('F', 6);
 

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.create = create;
+const n8n_workflow_1 = require("n8n-workflow");
 const ERPSAPB1Builders_1 = require("../../../transport/ERPSAPB1Builders");
 const text_1 = require("../../../utils/text");
 function normalizeText(value) {
@@ -10,7 +11,7 @@ function normalizeText(value) {
     return String(value).trim();
 }
 function hasAnyAddressValue(address) {
-    return Object.values(address).some((value) => typeof value === 'string' && value.trim().length > 0);
+    return Object.entries(address).some(([key, value]) => key !== 'Country' && typeof value === 'string' && value.trim().length > 0);
 }
 function buildReplicatedAddresses(baseAddressName, address) {
     if (!hasAnyAddressValue(address)) {
@@ -39,6 +40,7 @@ async function create(api, index) {
     const block = normalizeText(this.getNodeParameter('block', index, ''));
     const buildingFloorRoom = normalizeText(this.getNodeParameter('buildingFloorRoom', index, ''));
     const city = normalizeText(this.getNodeParameter('city', index, ''));
+    const county = normalizeText(this.getNodeParameter('county', index, '')) || city;
     const zipCode = normalizeText(this.getNodeParameter('zipCode', index, ''));
     const state = normalizeText(this.getNodeParameter('state', index, ''));
     const country = normalizeText(this.getNodeParameter('country', index, 'BR'));
@@ -49,10 +51,14 @@ async function create(api, index) {
         Block: block || undefined,
         BuildingFloorRoom: buildingFloorRoom || undefined,
         City: city || undefined,
+        County: county || undefined,
         ZipCode: zipCode || undefined,
         State: state || undefined,
         Country: country || undefined,
     };
+    if (hasAnyAddressValue(address) && !county) {
+        throw new n8n_workflow_1.NodeOperationError(this.getNode(), 'Município do endereço é obrigatório para criar PN no SAP B1. Preencha o campo Município ou Cidade.', { itemIndex: index });
+    }
     const resolvedCardCode = cardCode || await api.generateNextSupplierCardCode('F', 6);
     const supplier = (0, ERPSAPB1Builders_1.applyDynamicFields)({
         CardCode: resolvedCardCode,

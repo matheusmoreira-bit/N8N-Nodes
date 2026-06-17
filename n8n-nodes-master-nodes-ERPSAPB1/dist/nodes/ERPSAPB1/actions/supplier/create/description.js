@@ -123,6 +123,20 @@ exports.supplierCreateDescription = [
         },
     },
     {
+        displayName: 'Município',
+        name: 'county',
+        type: 'string',
+        default: '',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: ['supplier'],
+                operation: ['create'],
+            },
+        },
+        description: 'Município do endereço no SAP B1. Se vazio, usa a Cidade informada.',
+    },
+    {
         displayName: 'CEP',
         name: 'zipCode',
         type: 'string',
