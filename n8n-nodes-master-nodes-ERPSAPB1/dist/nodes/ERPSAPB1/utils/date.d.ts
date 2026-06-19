@@ -1,1 +1,1 @@
-export declare function toSapDate(value: string | Date): string;
+export declare function toSapDate(value: string | Date | unknown): string;
