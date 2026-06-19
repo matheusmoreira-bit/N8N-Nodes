@@ -81,14 +81,14 @@ function resolveOptionalNumber(value) {
         return undefined;
     }
     if (typeof value === 'number') {
-        return Number.isNaN(value) ? undefined : value;
+        return Number.isNaN(value) || value <= 0 ? undefined : value;
     }
     const normalized = String(value).trim().replace(',', '.');
     if (!normalized) {
         return undefined;
     }
     const parsed = Number(normalized);
-    return Number.isNaN(parsed) ? undefined : parsed;
+    return Number.isNaN(parsed) || parsed <= 0 ? undefined : parsed;
 }
 function extractDetailedErrorMessage(error) {
     var _a, _b, _c, _d, _e, _f, _g;

@@ -128,7 +128,7 @@ function resolveOptionalNumber(value: unknown): number | undefined {
     }
 
     if (typeof value === 'number') {
-        return Number.isNaN(value) ? undefined : value;
+        return Number.isNaN(value) || value <= 0 ? undefined : value;
     }
 
     const normalized = String(value).trim().replace(',', '.');
@@ -137,7 +137,7 @@ function resolveOptionalNumber(value: unknown): number | undefined {
     }
 
     const parsed = Number(normalized);
-    return Number.isNaN(parsed) ? undefined : parsed;
+    return Number.isNaN(parsed) || parsed <= 0 ? undefined : parsed;
 }
 
 function extractDetailedErrorMessage(error: unknown): string | undefined {
