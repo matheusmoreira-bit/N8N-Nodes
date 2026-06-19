@@ -24,6 +24,21 @@ function applyDynamicFields(value, dynamicFields) {
 function toAmountInCents(value) {
     return Math.round(Number(value) * 100);
 }
+function parseDecimal(value) {
+    if (typeof value === 'number') {
+        return Number.isNaN(value) ? undefined : value;
+    }
+    const textValue = `${value !== null && value !== void 0 ? value : ''}`.trim();
+    if (!textValue) {
+        return undefined;
+    }
+    const numericText = textValue.replace(/[^\d,.-]/g, '');
+    const normalized = numericText.includes(',')
+        ? numericText.replace(/\./g, '').replace(',', '.')
+        : numericText;
+    const parsed = Number(normalized);
+    return Number.isNaN(parsed) ? undefined : parsed;
+}
 function buildPurchaseOrderLines(lineValues) {
     if (!lineValues.length) {
         throw new Error('Informe ao menos um item para criar o pedido de compra.');
@@ -33,23 +48,26 @@ function buildPurchaseOrderLines(lineValues) {
         if (!lineValue.itemCode || !lineValue.itemDescription) {
             throw new Error('Cada item deve conter ItemCode e ItemDescription.');
         }
-        if (lineValue.quantity === undefined || lineValue.unitPrice === undefined) {
+        const quantity = parseDecimal(lineValue.quantity);
+        const unitPrice = parseDecimal(lineValue.unitPrice);
+        if (quantity === undefined || unitPrice === undefined) {
             throw new Error('Cada item deve conter Quantity e UnitPrice.');
         }
         const documentLine = applyDynamicFields({
             ItemCode: lineValue.itemCode,
             ItemDescription: lineValue.itemDescription,
             TaxCode: (_a = lineValue.taxCode) !== null && _a !== void 0 ? _a : '',
-            Quantity: lineValue.quantity,
-            UnitPrice: lineValue.unitPrice,
+            Quantity: quantity,
+            UnitPrice: unitPrice,
             CFOPCode: lineValue.cfopCode,
             Usage: lineValue.usage,
-            WarehouseCode: lineValue.warehouseCode,
+            WarehouseCode: lineValue.warehouseCode || '99',
             CostingCode: lineValue.costingCode || ((_b = lineValue.costingCodes) === null || _b === void 0 ? void 0 : _b.costingCode),
             CostingCode2: (_c = lineValue.costingCodes) === null || _c === void 0 ? void 0 : _c.costingCode2,
             CostingCode3: (_d = lineValue.costingCodes) === null || _d === void 0 ? void 0 : _d.costingCode3,
             CostingCode4: (_e = lineValue.costingCodes) === null || _e === void 0 ? void 0 : _e.costingCode4,
             ProjectCode: lineValue.projectCode,
+            U_FGR_TIPO_LANC: lineValue.tipoLancamento || 'D',
         }, (_f = lineValue.dynamicFields) === null || _f === void 0 ? void 0 : _f.dynamicFields);
         return removeEmptyPropertiesKeeping(documentLine, ['TaxCode']);
     });

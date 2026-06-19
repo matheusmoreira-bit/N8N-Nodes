@@ -29,6 +29,7 @@ export interface IPurchaseOrderLineInput extends IDataObject {
     cfopCode?: string;
     usage?: number;
     warehouseCode?: string;
+    tipoLancamento?: string;
     costingCodes?: ICostingCodeCollection;
     dynamicFields?: IDynamicFieldCollection;
 }
@@ -77,6 +78,24 @@ function toAmountInCents(value: number): number {
     return Math.round(Number(value) * 100);
 }
 
+function parseDecimal(value: unknown): number | undefined {
+    if (typeof value === 'number') {
+        return Number.isNaN(value) ? undefined : value;
+    }
+
+    const textValue = `${value ?? ''}`.trim();
+    if (!textValue) {
+        return undefined;
+    }
+
+    const numericText = textValue.replace(/[^\d,.-]/g, '');
+    const normalized = numericText.includes(',')
+        ? numericText.replace(/\./g, '').replace(',', '.')
+        : numericText;
+    const parsed = Number(normalized);
+    return Number.isNaN(parsed) ? undefined : parsed;
+}
+
 export function buildPurchaseOrderLines(lineValues: IPurchaseOrderLineInput[]): IDocumentLine[] {
     if (!lineValues.length) {
         throw new Error('Informe ao menos um item para criar o pedido de compra.');
@@ -87,7 +106,10 @@ export function buildPurchaseOrderLines(lineValues: IPurchaseOrderLineInput[]): 
             throw new Error('Cada item deve conter ItemCode e ItemDescription.');
         }
 
-        if (lineValue.quantity === undefined || lineValue.unitPrice === undefined) {
+        const quantity = parseDecimal(lineValue.quantity);
+        const unitPrice = parseDecimal(lineValue.unitPrice);
+
+        if (quantity === undefined || unitPrice === undefined) {
             throw new Error('Cada item deve conter Quantity e UnitPrice.');
         }
 
@@ -95,16 +117,17 @@ export function buildPurchaseOrderLines(lineValues: IPurchaseOrderLineInput[]): 
             ItemCode: lineValue.itemCode,
             ItemDescription: lineValue.itemDescription,
             TaxCode: lineValue.taxCode ?? '',
-            Quantity: lineValue.quantity,
-            UnitPrice: lineValue.unitPrice,
+            Quantity: quantity,
+            UnitPrice: unitPrice,
             CFOPCode: lineValue.cfopCode,
             Usage: lineValue.usage,
-            WarehouseCode: lineValue.warehouseCode,
+            WarehouseCode: lineValue.warehouseCode || '99',
             CostingCode: lineValue.costingCode || lineValue.costingCodes?.costingCode,
             CostingCode2: lineValue.costingCodes?.costingCode2,
             CostingCode3: lineValue.costingCodes?.costingCode3,
             CostingCode4: lineValue.costingCodes?.costingCode4,
             ProjectCode: lineValue.projectCode,
+            U_FGR_TIPO_LANC: lineValue.tipoLancamento || 'D',
         } as IDataObject, lineValue.dynamicFields?.dynamicFields);
 
         return removeEmptyPropertiesKeeping(documentLine, ['TaxCode']) as IDocumentLine;

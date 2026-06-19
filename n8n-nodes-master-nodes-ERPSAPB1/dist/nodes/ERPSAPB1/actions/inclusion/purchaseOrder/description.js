@@ -357,6 +357,21 @@ exports.inclusionPurchaseOrderDescription = [
                         required: false,
                     },
                     {
+                        displayName: 'WarehouseCode',
+                        name: 'warehouseCode',
+                        type: 'string',
+                        default: '99',
+                        required: false,
+                    },
+                    {
+                        displayName: 'Tipo de Lançamento',
+                        name: 'tipoLancamento',
+                        type: 'string',
+                        default: 'D',
+                        required: false,
+                        description: 'Enviado como U_FGR_TIPO_LANC na linha do pedido.',
+                    },
+                    {
                         displayName: 'CostingCodes Opcionais',
                         name: 'costingCodes',
                         type: 'collection',
@@ -455,6 +470,6 @@ exports.inclusionPurchaseOrderDescription = [
                 ],
             },
         },
-        description: 'Aceita um array JSON no formato SAP (`ItemCode`, `ItemDescription`, `Quantity`, `UnitPrice`) ou no formato simplificado (`itemCode`, `itemDescription`, `quantity`, `unitPrice`). `CostingCode` e `ProjectCode` são opcionais.',
+        description: 'Aceita um array JSON no formato SAP (`ItemCode`, `ItemDescription`, `Quantity`, `UnitPrice`) ou no formato simplificado (`itemCode`, `itemDescription`, `quantity`, `unitPrice`). `CostingCode` e `ProjectCode` são opcionais. No formato simplificado, `warehouseCode` usa `99` e `tipoLancamento` usa `D` quando vazios.',
     },
 ];
