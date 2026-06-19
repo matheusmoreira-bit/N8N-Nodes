@@ -97,4 +97,16 @@ export const descriptions: INodeProperties[] = [
             },
         },
     },
+    {
+        displayName: 'Consultar Detalhes do Fornecedor',
+        name: 'fetchSupplierDetails',
+        type: 'boolean',
+        default: false,
+        description: 'Consulta cada fornecedor retornado em ConsultarCliente para trazer campos detalhados, como dados bancários e chave Pix',
+        displayOptions: {
+            show: {
+                operation: ['list'],
+            },
+        },
+    },
 ];

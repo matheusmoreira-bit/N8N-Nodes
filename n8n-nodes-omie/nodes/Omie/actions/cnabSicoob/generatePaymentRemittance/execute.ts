@@ -341,8 +341,17 @@ function hasFavoredIdentityData(payable: IDataObject): boolean {
     );
 }
 
+function hasPixKeyData(payable: IDataObject): boolean {
+    return Boolean(toStringValue(getFirstJsonValue(payable, fieldPaths.chavePix)));
+}
+
 function shouldFetchSupplierDetails(payable: IDataObject): boolean {
-    return !hasBarcodeData(payable) && (!hasTransferBankData(payable) || !hasFavoredIdentityData(payable));
+    return !hasBarcodeData(payable)
+        && (
+            !hasTransferBankData(payable)
+            || !hasFavoredIdentityData(payable)
+            || (isPixLikePayment(payable) && !hasPixKeyData(payable))
+        );
 }
 
 function getSupplierLookupParams(payable: IDataObject): IDataObject {
@@ -502,8 +511,8 @@ function getPaymentIdentificationMessage(json: IDataObject, missingFields: strin
         : '';
 
     if (isPixLikePayment(json)) {
-        return 'Pagamento identificado como PIX, mas não há código de barras nem dados bancários completos para gerar o CNAB Sicoob por transferência. '
-            + 'O gerador atual não monta pagamento PIX somente por chave; preencha banco, agência, conta e DV no cadastro do fornecedor/integração bancária do Omie, ou envie uma linha digitável/código de barras quando for boleto. '
+        return 'Pagamento identificado como PIX, mas não há chave Pix ou identificação completa do favorecido para gerar o CNAB Sicoob por chave. '
+            + 'Preencha a chave Pix e o CPF/CNPJ no cadastro do fornecedor/integração bancária do Omie, ou envie uma linha digitável/código de barras quando for boleto. '
             + `${details ? `Detalhes encontrados: ${details}.` : ''}${missingText}`;
     }
 
@@ -670,12 +679,19 @@ const fieldPaths = {
     ]),
     chavePix: withSupplierPaths([
         'cnab_integracao_bancaria.chave_pix',
+        'cnab_integracao_bancaria.chavePix',
         'chave_pix',
+        'chavePix',
         'cChavePix',
         'dados_bancarios.chave_pix',
+        'dados_bancarios.chavePix',
         'dados_bancarios.cChavePix',
         'dadosBancarios.chave_pix',
+        'dadosBancarios.chavePix',
         'dadosBancarios.cChavePix',
+        'pix.chave',
+        'pix.chave_pix',
+        'pix.chavePix',
     ]),
     tipoChavePix: withSupplierPaths([
         'cnab_integracao_bancaria.tipo_chave_pix',
@@ -842,9 +858,11 @@ export async function execute(this: IExecuteFunctions, api: OmieApi): Promise<IN
 
         if (isPixLikePayment(json)) {
             const transferDocument = onlyDigits(getFirstJsonValue(json, ['cnab_integracao_bancaria.cpf_cnpj_transferencia']));
-            const rawChavePix = transferDocument;
+            const rawChavePix = toStringValue(getFirstJsonValue(json, fieldPaths.chavePix));
             const tipoChavePix = inferPixKeyType(rawChavePix);
-            const pixDocument = numeroInscricaoFavorecido || (inferPixKeyType(rawChavePix) === '003' ? rawChavePix : '');
+            const pixDocument = numeroInscricaoFavorecido
+                || transferDocument
+                || (tipoChavePix === '003' ? onlyDigits(rawChavePix) : '');
             const chavePix = rawChavePix || pixDocument;
             const nomeFavorecido = toStringValue(getFirstJsonValue(json, fieldPaths.nomeFavorecido));
             const missingPixFields = [
