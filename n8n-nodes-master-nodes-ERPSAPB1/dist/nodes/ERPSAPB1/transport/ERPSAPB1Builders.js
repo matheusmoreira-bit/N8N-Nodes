@@ -30,8 +30,8 @@ function buildPurchaseOrderLines(lineValues) {
     }
     return lineValues.map((lineValue) => {
         var _a, _b, _c, _d, _e, _f;
-        if (!lineValue.itemCode || !lineValue.itemDescription || !lineValue.costingCode || !lineValue.projectCode) {
-            throw new Error('Cada item deve conter ItemCode, ItemDescription, CostingCode e ProjectCode.');
+        if (!lineValue.itemCode || !lineValue.itemDescription || !lineValue.costingCode) {
+            throw new Error('Cada item deve conter ItemCode, ItemDescription e CostingCode.');
         }
         if (lineValue.quantity === undefined || lineValue.unitPrice === undefined) {
             throw new Error('Cada item deve conter Quantity e UnitPrice.');

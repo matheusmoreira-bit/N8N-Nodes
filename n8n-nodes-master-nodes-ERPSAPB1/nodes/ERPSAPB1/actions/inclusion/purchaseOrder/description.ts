@@ -353,7 +353,7 @@ export const inclusionPurchaseOrderDescription: InclusionProperties = [
                         name: 'projectCode',
                         type: 'string',
                         default: '',
-                        required: true,
+                        required: false,
                     },
                     {
                         displayName: 'CostingCodes Opcionais',
@@ -454,6 +454,6 @@ export const inclusionPurchaseOrderDescription: InclusionProperties = [
                 ],
             },
         },
-        description: 'Aceita um array JSON no formato SAP (`ItemCode`, `ItemDescription`, `Quantity`, `UnitPrice`, `CostingCode`, `ProjectCode`) ou no formato simplificado (`itemCode`, `itemDescription`, `quantity`, `unitPrice`, `costingCode`, `projectCode`).',
+        description: 'Aceita um array JSON no formato SAP (`ItemCode`, `ItemDescription`, `Quantity`, `UnitPrice`, `CostingCode`) ou no formato simplificado (`itemCode`, `itemDescription`, `quantity`, `unitPrice`, `costingCode`). `ProjectCode` é opcional.',
     },
 ];

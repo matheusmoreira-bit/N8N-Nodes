@@ -24,7 +24,7 @@ export interface IPurchaseOrderLineInput extends IDataObject {
     quantity: number;
     unitPrice: number;
     costingCode: string;
-    projectCode: string;
+    projectCode?: string;
     taxCode?: string;
     cfopCode?: string;
     usage?: number;
@@ -83,8 +83,8 @@ export function buildPurchaseOrderLines(lineValues: IPurchaseOrderLineInput[]): 
     }
 
     return lineValues.map((lineValue) => {
-        if (!lineValue.itemCode || !lineValue.itemDescription || !lineValue.costingCode || !lineValue.projectCode) {
-            throw new Error('Cada item deve conter ItemCode, ItemDescription, CostingCode e ProjectCode.');
+        if (!lineValue.itemCode || !lineValue.itemDescription || !lineValue.costingCode) {
+            throw new Error('Cada item deve conter ItemCode, ItemDescription e CostingCode.');
         }
 
         if (lineValue.quantity === undefined || lineValue.unitPrice === undefined) {

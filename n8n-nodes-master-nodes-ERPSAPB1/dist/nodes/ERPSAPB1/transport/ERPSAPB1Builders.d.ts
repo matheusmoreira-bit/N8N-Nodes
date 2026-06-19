@@ -15,7 +15,7 @@ export interface IPurchaseOrderLineInput extends IDataObject {
     quantity: number;
     unitPrice: number;
     costingCode: string;
-    projectCode: string;
+    projectCode?: string;
     taxCode?: string;
     cfopCode?: string;
     usage?: number;

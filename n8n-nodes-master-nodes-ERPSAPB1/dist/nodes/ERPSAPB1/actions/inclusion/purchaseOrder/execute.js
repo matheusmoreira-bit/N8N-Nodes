@@ -14,8 +14,7 @@ function isSapDocumentLineArray(value) {
             && documentLine.ItemDescription
             && documentLine.Quantity !== undefined
             && documentLine.UnitPrice !== undefined
-            && documentLine.CostingCode
-            && documentLine.ProjectCode);
+            && documentLine.CostingCode);
     });
 }
 function isPurchaseOrderLineInputArray(value) {

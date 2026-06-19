@@ -41,8 +41,7 @@ function isSapDocumentLineArray(value: unknown): value is IDocumentLine[] {
             && documentLine.ItemDescription
             && documentLine.Quantity !== undefined
             && documentLine.UnitPrice !== undefined
-            && documentLine.CostingCode
-            && documentLine.ProjectCode,
+            && documentLine.CostingCode,
         );
     });
 }
