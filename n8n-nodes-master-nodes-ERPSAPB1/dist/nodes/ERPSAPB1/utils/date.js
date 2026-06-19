@@ -1,6 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.toSapDate = toSapDate;
+function assertValidDateParts(year, month, day) {
+    const parsedDate = new Date(Date.UTC(year, month - 1, day));
+    if (parsedDate.getUTCFullYear() !== year
+        || parsedDate.getUTCMonth() !== month - 1
+        || parsedDate.getUTCDate() !== day) {
+        throw new Error('Data invalida informada para o SAP.');
+    }
+}
 function toSapDate(value) {
     if (value instanceof Date) {
         if (Number.isNaN(value.getTime())) {
@@ -8,10 +16,20 @@ function toSapDate(value) {
         }
         return value.toISOString().slice(0, 10);
     }
-    if (/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(value)) {
-        return value.slice(0, 10);
+    const normalizedValue = String(value).trim();
+    const isoDate = /^(\d{4})-(\d{2})-(\d{2})(T.*)?$/.exec(normalizedValue);
+    if (isoDate) {
+        const [, year, month, day] = isoDate;
+        assertValidDateParts(Number(year), Number(month), Number(day));
+        return normalizedValue.slice(0, 10);
     }
-    const parsedDate = new Date(value);
+    const brazilianDate = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(normalizedValue);
+    if (brazilianDate) {
+        const [, day, month, year] = brazilianDate;
+        assertValidDateParts(Number(year), Number(month), Number(day));
+        return `${year}-${month}-${day}`;
+    }
+    const parsedDate = new Date(normalizedValue);
     if (Number.isNaN(parsedDate.getTime())) {
         throw new Error('Data invalida informada para o SAP.');
     }
