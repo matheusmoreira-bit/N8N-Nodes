@@ -347,7 +347,7 @@ exports.inclusionPurchaseOrderDescription = [
                         name: 'costingCode',
                         type: 'string',
                         default: '',
-                        required: true,
+                        required: false,
                     },
                     {
                         displayName: 'ProjectCode',
@@ -455,6 +455,6 @@ exports.inclusionPurchaseOrderDescription = [
                 ],
             },
         },
-        description: 'Aceita um array JSON no formato SAP (`ItemCode`, `ItemDescription`, `Quantity`, `UnitPrice`, `CostingCode`) ou no formato simplificado (`itemCode`, `itemDescription`, `quantity`, `unitPrice`, `costingCode`). `ProjectCode` é opcional.',
+        description: 'Aceita um array JSON no formato SAP (`ItemCode`, `ItemDescription`, `Quantity`, `UnitPrice`) ou no formato simplificado (`itemCode`, `itemDescription`, `quantity`, `unitPrice`). `CostingCode` e `ProjectCode` são opcionais.',
     },
 ];

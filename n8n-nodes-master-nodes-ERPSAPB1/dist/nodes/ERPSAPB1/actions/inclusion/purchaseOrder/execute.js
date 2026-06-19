@@ -13,8 +13,7 @@ function isSapDocumentLineArray(value) {
         return Boolean(documentLine.ItemCode
             && documentLine.ItemDescription
             && documentLine.Quantity !== undefined
-            && documentLine.UnitPrice !== undefined
-            && documentLine.CostingCode);
+            && documentLine.UnitPrice !== undefined);
     });
 }
 function isPurchaseOrderLineInputArray(value) {
