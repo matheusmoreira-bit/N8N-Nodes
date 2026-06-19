@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { IExecuteFunctions, INodeExecutionData, NodeOperationError } from 'n8n-workflow';
 
 import { ERPSAPB1Api } from '../../../transport/ERPSAPB1Api';
@@ -28,6 +29,24 @@ interface IOptionalPurchaseOrderFields {
 interface IDocumentLineParameter {
     lineValues?: IPurchaseOrderLineInput[];
 }
+
+interface IAttachmentUrlParameter {
+    url?: string;
+    fileName?: string;
+}
+
+interface IAttachmentUrlsParameter {
+    attachmentUrls?: IAttachmentUrlParameter[];
+}
+
+interface IAttachmentFileInput {
+    fileName: string;
+    content: Buffer;
+}
+
+type AttachmentSource = 'none' | 'binary' | 'url' | 'binaryAndUrl';
+
+const ATTACHMENT_URL_TIMEOUT_MS = 60000;
 
 function isSapDocumentLineArray(value: unknown): value is IDocumentLine[] {
     return Array.isArray(value) && value.every((lineValue) => {
@@ -106,6 +125,157 @@ function safeTrim(value: unknown): string {
     }
 
     return String(value).trim();
+}
+
+function splitCommaSeparated(value: unknown): string[] {
+    return safeTrim(value)
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0);
+}
+
+function sanitizeFileName(fileName: string): string {
+    return fileName.replace(/[\\/:*?"<>|]/g, '_').trim() || 'anexo';
+}
+
+function fileNameFromContentDisposition(contentDisposition: unknown): string {
+    if (typeof contentDisposition !== 'string' || !contentDisposition) {
+        return '';
+    }
+
+    const utfFileName = /filename\*=UTF-8''([^;]+)/i.exec(contentDisposition);
+    if (utfFileName?.[1]) {
+        try {
+            return decodeURIComponent(utfFileName[1].replace(/"/g, ''));
+        } catch {
+            return utfFileName[1].replace(/"/g, '');
+        }
+    }
+
+    const regularFileName = /filename="?([^";]+)"?/i.exec(contentDisposition);
+    return regularFileName?.[1] ?? '';
+}
+
+function fileNameFromUrl(url: string, fallbackIndex: number): string {
+    try {
+        const parsedUrl = new URL(url);
+        const urlFileName = parsedUrl.pathname.split('/').filter(Boolean).pop();
+        if (urlFileName) {
+            return decodeURIComponent(urlFileName);
+        }
+    } catch {
+        const urlFileName = url.split('?')[0].split('/').filter(Boolean).pop();
+        if (urlFileName) {
+            return urlFileName;
+        }
+    }
+
+    return `anexo-${fallbackIndex + 1}`;
+}
+
+function shouldCollectBinaryAttachments(source: AttachmentSource): boolean {
+    return source === 'binary' || source === 'binaryAndUrl';
+}
+
+function shouldCollectUrlAttachments(source: AttachmentSource): boolean {
+    return source === 'url' || source === 'binaryAndUrl';
+}
+
+async function collectBinaryAttachmentFiles(
+    this: IExecuteFunctions,
+    index: number,
+    binaryKeys: string[],
+): Promise<IAttachmentFileInput[]> {
+    if (!binaryKeys.length) {
+        throw new Error('Informe ao menos uma chave binaria para anexar ao pedido de compra.');
+    }
+
+    const item = this.getInputData()[index];
+    if (!item.binary) {
+        throw new Error('Arquivo binario nao esta presente no item de entrada.');
+    }
+
+    const files: IAttachmentFileInput[] = [];
+    for (const binaryKey of binaryKeys) {
+        const binaryFile = item.binary[binaryKey];
+        if (!binaryFile) {
+            throw new Error(`Nao ha anexo binario com a chave "${binaryKey}".`);
+        }
+
+        const fileContent = await this.helpers.getBinaryDataBuffer(index, binaryKey);
+        files.push({
+            fileName: sanitizeFileName(binaryFile.fileName || `${binaryKey}.bin`),
+            content: fileContent,
+        });
+    }
+
+    return files;
+}
+
+async function collectUrlAttachmentFiles(attachmentUrls: IAttachmentUrlParameter[] = []): Promise<IAttachmentFileInput[]> {
+    const normalizedUrls = attachmentUrls
+        .map((attachmentUrl) => ({
+            url: safeTrim(attachmentUrl.url),
+            fileName: safeTrim(attachmentUrl.fileName),
+        }))
+        .filter((attachmentUrl) => attachmentUrl.url.length > 0);
+
+    if (!normalizedUrls.length) {
+        throw new Error('Informe ao menos uma URL para anexar ao pedido de compra.');
+    }
+
+    const files: IAttachmentFileInput[] = [];
+    for (const [urlIndex, attachmentUrl] of normalizedUrls.entries()) {
+        const response = await axios.get<ArrayBuffer>(attachmentUrl.url, {
+            responseType: 'arraybuffer',
+            timeout: ATTACHMENT_URL_TIMEOUT_MS,
+        });
+
+        const inferredFileName = attachmentUrl.fileName
+            || fileNameFromContentDisposition(response.headers['content-disposition'])
+            || fileNameFromUrl(attachmentUrl.url, urlIndex);
+
+        files.push({
+            fileName: sanitizeFileName(inferredFileName),
+            content: Buffer.from(response.data),
+        });
+    }
+
+    return files;
+}
+
+async function resolvePurchaseOrderAttachmentEntry(
+    this: IExecuteFunctions,
+    api: ERPSAPB1Api,
+    index: number,
+    existingAttachmentEntry: number | undefined,
+    attachmentSource: AttachmentSource,
+    attachmentBinaryKeys: string,
+    attachmentUrlFields: IAttachmentUrlsParameter,
+): Promise<number | undefined> {
+    if (attachmentSource === 'none') {
+        return existingAttachmentEntry ?? undefined;
+    }
+
+    const files: IAttachmentFileInput[] = [];
+    if (shouldCollectBinaryAttachments(attachmentSource)) {
+        files.push(...await collectBinaryAttachmentFiles.call(this, index, splitCommaSeparated(attachmentBinaryKeys)));
+    }
+
+    if (shouldCollectUrlAttachments(attachmentSource)) {
+        files.push(...await collectUrlAttachmentFiles(attachmentUrlFields.attachmentUrls));
+    }
+
+    if (!files.length) {
+        throw new Error('Informe ao menos um anexo binario ou URL para criar o AttachmentEntry.');
+    }
+
+    const attachment = await api.createAttachmentFiles(files);
+    if (!attachment?.AbsoluteEntry) {
+        throw new Error('Nao foi possivel criar o registro de anexo no SAP B1.');
+    }
+
+    return attachment.AbsoluteEntry;
 }
 
 function normalizeDocCurrency(value: unknown): string | undefined {
@@ -206,6 +376,9 @@ export async function purchaseOrder(this: IExecuteFunctions, api: ERPSAPB1Api, i
     const manualDocumentLines = this.getNodeParameter('documentLines', index, {}) as IDocumentLineParameter;
     const documentLinesJson = this.getNodeParameter('documentLinesJson', index, '[]') as string;
     const optionalFields = this.getNodeParameter('optionalFields', index, {}) as IOptionalPurchaseOrderFields;
+    const attachmentSource = this.getNodeParameter('attachmentSource', index, 'none') as AttachmentSource;
+    const attachmentBinaryKeys = this.getNodeParameter('attachmentBinaryKeys', index, 'data') as string;
+    const attachmentUrlFields = this.getNodeParameter('attachmentUrls', index, {}) as IAttachmentUrlsParameter;
 
     try {
         let resolvedDocCurrency = docCurrency;
@@ -240,6 +413,16 @@ export async function purchaseOrder(this: IExecuteFunctions, api: ERPSAPB1Api, i
             throw new Error('Informe CardCode ou CNPJ/CPF do fornecedor para criar o pedido de compra.');
         }
 
+        const attachmentEntry = await resolvePurchaseOrderAttachmentEntry.call(
+            this,
+            api,
+            index,
+            optionalFields.attachmentEntry,
+            attachmentSource,
+            attachmentBinaryKeys,
+            attachmentUrlFields,
+        );
+
         const purchaseOrder = applyDynamicFields({
             CardCode: resolvedCardCode,
             DocDate: docDate,
@@ -252,7 +435,7 @@ export async function purchaseOrder(this: IExecuteFunctions, api: ERPSAPB1Api, i
             DocRate: docRate,
             U_FGR_RATEIO_CC: 'N',
             U_FGR_CONTRATO: 'N',
-            AttachmentEntry: optionalFields.attachmentEntry ?? undefined,
+            AttachmentEntry: attachmentEntry,
             SequenceCode: optionalFields.sequenceCode ?? undefined,
             SequenceModel: optionalFields.sequenceModel ?? undefined,
             SequenceSerial: optionalFields.sequenceSerial ?? undefined,

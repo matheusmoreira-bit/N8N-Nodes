@@ -224,6 +224,111 @@ exports.inclusionPurchaseOrderDescription = [
         ],
     },
     {
+        displayName: 'Origem dos Anexos',
+        name: 'attachmentSource',
+        type: 'options',
+        default: 'none',
+        options: [
+            {
+                name: 'Nenhum',
+                value: 'none',
+            },
+            {
+                name: 'Binário',
+                value: 'binary',
+            },
+            {
+                name: 'URL',
+                value: 'url',
+            },
+            {
+                name: 'Binário e URL',
+                value: 'binaryAndUrl',
+            },
+        ],
+        displayOptions: {
+            show: {
+                resource: [
+                    'inclusion',
+                ],
+                operation: [
+                    'purchaseOrder',
+                ],
+            },
+        },
+        description: 'Cria um registro em Attachments2 antes do pedido e envia o AttachmentEntry no PurchaseOrder.',
+    },
+    {
+        displayName: 'Chaves Binárias dos Anexos',
+        name: 'attachmentBinaryKeys',
+        type: 'string',
+        default: 'data',
+        required: false,
+        displayOptions: {
+            show: {
+                resource: [
+                    'inclusion',
+                ],
+                operation: [
+                    'purchaseOrder',
+                ],
+                attachmentSource: [
+                    'binary',
+                    'binaryAndUrl',
+                ],
+            },
+        },
+        description: 'Nomes das propriedades binárias do item de entrada, separados por vírgula. Ex.: data, notaFiscal.',
+    },
+    {
+        displayName: 'URLs dos Anexos',
+        name: 'attachmentUrls',
+        type: 'fixedCollection',
+        placeholder: 'Adicionar URL',
+        default: {},
+        required: false,
+        typeOptions: {
+            multipleValues: true,
+        },
+        options: [
+            {
+                name: 'attachmentUrls',
+                displayName: 'URL',
+                values: [
+                    {
+                        displayName: 'URL',
+                        name: 'url',
+                        type: 'string',
+                        default: '',
+                        required: true,
+                    },
+                    {
+                        displayName: 'Nome do Arquivo',
+                        name: 'fileName',
+                        type: 'string',
+                        default: '',
+                        required: false,
+                        description: 'Opcional. Quando vazio, o nome será inferido pelo Content-Disposition ou pela URL.',
+                    },
+                ],
+            },
+        ],
+        displayOptions: {
+            show: {
+                resource: [
+                    'inclusion',
+                ],
+                operation: [
+                    'purchaseOrder',
+                ],
+                attachmentSource: [
+                    'url',
+                    'binaryAndUrl',
+                ],
+            },
+        },
+    },
+    {
         displayName: 'Campos dinâmicos',
         name: 'dynamicFields',
         type: 'fixedCollection',

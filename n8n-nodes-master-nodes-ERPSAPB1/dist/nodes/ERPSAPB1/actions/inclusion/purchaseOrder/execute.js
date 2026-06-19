@@ -1,9 +1,14 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.purchaseOrder = purchaseOrder;
+const axios_1 = __importDefault(require("axios"));
 const n8n_workflow_1 = require("n8n-workflow");
 const ERPSAPB1Builders_1 = require("../../../transport/ERPSAPB1Builders");
 const date_1 = require("../../../utils/date");
+const ATTACHMENT_URL_TIMEOUT_MS = 60000;
 function isSapDocumentLineArray(value) {
     return Array.isArray(value) && value.every((lineValue) => {
         if (typeof lineValue !== 'object' || lineValue === null) {
@@ -65,6 +70,122 @@ function safeTrim(value) {
     }
     return String(value).trim();
 }
+function splitCommaSeparated(value) {
+    return safeTrim(value)
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0);
+}
+function sanitizeFileName(fileName) {
+    return fileName.replace(/[\\/:*?"<>|]/g, '_').trim() || 'anexo';
+}
+function fileNameFromContentDisposition(contentDisposition) {
+    var _a;
+    if (typeof contentDisposition !== 'string' || !contentDisposition) {
+        return '';
+    }
+    const utfFileName = /filename\*=UTF-8''([^;]+)/i.exec(contentDisposition);
+    if (utfFileName === null || utfFileName === void 0 ? void 0 : utfFileName[1]) {
+        try {
+            return decodeURIComponent(utfFileName[1].replace(/"/g, ''));
+        }
+        catch {
+            return utfFileName[1].replace(/"/g, '');
+        }
+    }
+    const regularFileName = /filename="?([^";]+)"?/i.exec(contentDisposition);
+    return (_a = regularFileName === null || regularFileName === void 0 ? void 0 : regularFileName[1]) !== null && _a !== void 0 ? _a : '';
+}
+function fileNameFromUrl(url, fallbackIndex) {
+    try {
+        const parsedUrl = new URL(url);
+        const urlFileName = parsedUrl.pathname.split('/').filter(Boolean).pop();
+        if (urlFileName) {
+            return decodeURIComponent(urlFileName);
+        }
+    }
+    catch {
+        const urlFileName = url.split('?')[0].split('/').filter(Boolean).pop();
+        if (urlFileName) {
+            return urlFileName;
+        }
+    }
+    return `anexo-${fallbackIndex + 1}`;
+}
+function shouldCollectBinaryAttachments(source) {
+    return source === 'binary' || source === 'binaryAndUrl';
+}
+function shouldCollectUrlAttachments(source) {
+    return source === 'url' || source === 'binaryAndUrl';
+}
+async function collectBinaryAttachmentFiles(index, binaryKeys) {
+    if (!binaryKeys.length) {
+        throw new Error('Informe ao menos uma chave binaria para anexar ao pedido de compra.');
+    }
+    const item = this.getInputData()[index];
+    if (!item.binary) {
+        throw new Error('Arquivo binario nao esta presente no item de entrada.');
+    }
+    const files = [];
+    for (const binaryKey of binaryKeys) {
+        const binaryFile = item.binary[binaryKey];
+        if (!binaryFile) {
+            throw new Error(`Nao ha anexo binario com a chave "${binaryKey}".`);
+        }
+        const fileContent = await this.helpers.getBinaryDataBuffer(index, binaryKey);
+        files.push({
+            fileName: sanitizeFileName(binaryFile.fileName || `${binaryKey}.bin`),
+            content: fileContent,
+        });
+    }
+    return files;
+}
+async function collectUrlAttachmentFiles(attachmentUrls = []) {
+    const normalizedUrls = attachmentUrls
+        .map((attachmentUrl) => ({
+        url: safeTrim(attachmentUrl.url),
+        fileName: safeTrim(attachmentUrl.fileName),
+    }))
+        .filter((attachmentUrl) => attachmentUrl.url.length > 0);
+    if (!normalizedUrls.length) {
+        throw new Error('Informe ao menos uma URL para anexar ao pedido de compra.');
+    }
+    const files = [];
+    for (const [urlIndex, attachmentUrl] of normalizedUrls.entries()) {
+        const response = await axios_1.default.get(attachmentUrl.url, {
+            responseType: 'arraybuffer',
+            timeout: ATTACHMENT_URL_TIMEOUT_MS,
+        });
+        const inferredFileName = attachmentUrl.fileName
+            || fileNameFromContentDisposition(response.headers['content-disposition'])
+            || fileNameFromUrl(attachmentUrl.url, urlIndex);
+        files.push({
+            fileName: sanitizeFileName(inferredFileName),
+            content: Buffer.from(response.data),
+        });
+    }
+    return files;
+}
+async function resolvePurchaseOrderAttachmentEntry(api, index, existingAttachmentEntry, attachmentSource, attachmentBinaryKeys, attachmentUrlFields) {
+    if (attachmentSource === 'none') {
+        return existingAttachmentEntry !== null && existingAttachmentEntry !== void 0 ? existingAttachmentEntry : undefined;
+    }
+    const files = [];
+    if (shouldCollectBinaryAttachments(attachmentSource)) {
+        files.push(...await collectBinaryAttachmentFiles.call(this, index, splitCommaSeparated(attachmentBinaryKeys)));
+    }
+    if (shouldCollectUrlAttachments(attachmentSource)) {
+        files.push(...await collectUrlAttachmentFiles(attachmentUrlFields.attachmentUrls));
+    }
+    if (!files.length) {
+        throw new Error('Informe ao menos um anexo binario ou URL para criar o AttachmentEntry.');
+    }
+    const attachment = await api.createAttachmentFiles(files);
+    if (!(attachment === null || attachment === void 0 ? void 0 : attachment.AbsoluteEntry)) {
+        throw new Error('Nao foi possivel criar o registro de anexo no SAP B1.');
+    }
+    return attachment.AbsoluteEntry;
+}
 function normalizeDocCurrency(value) {
     const normalized = safeTrim(value);
     if (!normalized) {
@@ -119,7 +240,7 @@ function resolveDynamicFieldValue(dynamicFields, fieldNames) {
     return safeTrim(matchedField === null || matchedField === void 0 ? void 0 : matchedField.value);
 }
 async function purchaseOrder(api, index) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c;
     const cardCode = safeTrim(this.getNodeParameter('cardCode', index, ''));
     const supplierDocument = safeTrim(this.getNodeParameter('supplierDocument', index, ''));
     const docDate = resolveRequiredSapDate(this.getNodeParameter('docDate', index, ''));
@@ -136,6 +257,9 @@ async function purchaseOrder(api, index) {
     const manualDocumentLines = this.getNodeParameter('documentLines', index, {});
     const documentLinesJson = this.getNodeParameter('documentLinesJson', index, '[]');
     const optionalFields = this.getNodeParameter('optionalFields', index, {});
+    const attachmentSource = this.getNodeParameter('attachmentSource', index, 'none');
+    const attachmentBinaryKeys = this.getNodeParameter('attachmentBinaryKeys', index, 'data');
+    const attachmentUrlFields = this.getNodeParameter('attachmentUrls', index, {});
     try {
         let resolvedDocCurrency = docCurrency;
         if (resolvedDocCurrency) {
@@ -165,6 +289,7 @@ async function purchaseOrder(api, index) {
         if (!resolvedCardCode) {
             throw new Error('Informe CardCode ou CNPJ/CPF do fornecedor para criar o pedido de compra.');
         }
+        const attachmentEntry = await resolvePurchaseOrderAttachmentEntry.call(this, api, index, optionalFields.attachmentEntry, attachmentSource, attachmentBinaryKeys, attachmentUrlFields);
         const purchaseOrder = (0, ERPSAPB1Builders_1.applyDynamicFields)({
             CardCode: resolvedCardCode,
             DocDate: docDate,
@@ -177,10 +302,10 @@ async function purchaseOrder(api, index) {
             DocRate: docRate,
             U_FGR_RATEIO_CC: 'N',
             U_FGR_CONTRATO: 'N',
-            AttachmentEntry: (_a = optionalFields.attachmentEntry) !== null && _a !== void 0 ? _a : undefined,
-            SequenceCode: (_b = optionalFields.sequenceCode) !== null && _b !== void 0 ? _b : undefined,
-            SequenceModel: (_c = optionalFields.sequenceModel) !== null && _c !== void 0 ? _c : undefined,
-            SequenceSerial: (_d = optionalFields.sequenceSerial) !== null && _d !== void 0 ? _d : undefined,
+            AttachmentEntry: attachmentEntry,
+            SequenceCode: (_a = optionalFields.sequenceCode) !== null && _a !== void 0 ? _a : undefined,
+            SequenceModel: (_b = optionalFields.sequenceModel) !== null && _b !== void 0 ? _b : undefined,
+            SequenceSerial: (_c = optionalFields.sequenceSerial) !== null && _c !== void 0 ? _c : undefined,
             DocumentLines: resolveDocumentLines(documentLinesMode, manualDocumentLines, documentLinesJson),
         }, dynamicFields);
         const createdPurchaseOrder = await api.createPurchaseOrder(purchaseOrder);

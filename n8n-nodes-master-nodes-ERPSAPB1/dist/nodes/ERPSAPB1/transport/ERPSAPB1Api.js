@@ -432,13 +432,18 @@ class ERPSAPB1Api {
             .map((code) => code.trim());
         return Array.from(new Set(codes));
     }
-    async createAttachment(fileName, attachment) {
+    async createAttachmentFiles(files) {
         const formData = new form_data_1.default();
-        formData.append('files', attachment, fileName);
+        files.forEach((file) => {
+            formData.append('files', file.content, file.fileName);
+        });
         return this.send('POST', '/Attachments2', {
             body: formData,
             headers: formData.getHeaders(),
         });
+    }
+    async createAttachment(fileName, attachment) {
+        return this.createAttachmentFiles([{ fileName, content: attachment }]);
     }
     async listAttachments(maxPages, selectFields) {
         return this.useFullPagination('/Attachments2', ERPSAPB1Api.buildODataTemplate({

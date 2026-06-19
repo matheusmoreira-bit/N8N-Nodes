@@ -1,5 +1,9 @@
 import { IDataObject, IExecuteFunctions } from 'n8n-workflow';
 import { IAttachment, IBlanketAgreement, IBlanketAgreementOptions, ICreatedJournalEntry, IBPFiscalTaxID, ICostCenterType, ICostCenterTypeOptions, IDimension, IDimensionOptions, IDistributionRule, IDistributionRuleOptions, IDocument, IItem, IItemGroup, IItemGroupOptions, IItemOptions, IProfitCenter, IProfitCenterOptions, IProject, IProjectOptions, IJournalEntryTemplate, IPurchaseDownPayment, IPurchaseInvoice, IPurchaseOrder, ISalesOrder, IVendorPaymentRequest } from './Interfaces';
+interface IAttachmentUploadFile {
+    fileName: string;
+    content: Buffer;
+}
 export declare class ERPSAPB1Api {
     baseUrl: string;
     private authUser;
@@ -39,6 +43,7 @@ export declare class ERPSAPB1Api {
     createJournalEntry(template: Partial<IJournalEntryTemplate>): Promise<ICreatedJournalEntry>;
     createVendorPayment(payload: IVendorPaymentRequest): Promise<IDataObject>;
     listCurrencyCodes(): Promise<string[]>;
+    createAttachmentFiles(files: IAttachmentUploadFile[]): Promise<IAttachment>;
     createAttachment(fileName: string, attachment: Buffer): Promise<IAttachment>;
     listAttachments(maxPages?: number, selectFields?: string[]): Promise<IAttachment[]>;
     listSuppliers(filter?: string, maxPages?: number, selectFields?: string[]): Promise<IBPFiscalTaxID[]>;
@@ -60,3 +65,4 @@ export declare class ERPSAPB1Api {
     getSalesOrderByDocNum(docNum: number): Promise<ISalesOrder | undefined>;
     genericPaginatedQuery(resource: string, maxPages?: number): Promise<IDataObject[]>;
 }
+export {};

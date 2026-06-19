@@ -65,6 +65,11 @@ interface IPaginationOptions {
     maxPages?: number;
 }
 
+interface IAttachmentUploadFile {
+    fileName: string;
+    content: Buffer;
+}
+
 export class ERPSAPB1Api {
 
     private readonly client: AxiosInstance;
@@ -635,14 +640,20 @@ export class ERPSAPB1Api {
         return Array.from(new Set(codes));
     }
 
-    public async createAttachment(fileName: string, attachment: Buffer): Promise<IAttachment> {
+    public async createAttachmentFiles(files: IAttachmentUploadFile[]): Promise<IAttachment> {
         const formData = new FormData();
-        formData.append('files', attachment, fileName);
+        files.forEach((file) => {
+            formData.append('files', file.content, file.fileName);
+        });
 
         return this.send<IAttachment>('POST', '/Attachments2', {
             body: formData,
             headers: formData.getHeaders(),
         });
+    }
+
+    public async createAttachment(fileName: string, attachment: Buffer): Promise<IAttachment> {
+        return this.createAttachmentFiles([{ fileName, content: attachment }]);
     }
 
     public async listAttachments(maxPages?: number, selectFields?: string[]): Promise<IAttachment[]> {
