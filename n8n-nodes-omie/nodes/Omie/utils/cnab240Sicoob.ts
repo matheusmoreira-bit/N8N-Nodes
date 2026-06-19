@@ -87,6 +87,14 @@ function alpha(value: unknown, length: number): string {
     return normalized.padEnd(length, ' ');
 }
 
+function alphaPreserveCase(value: unknown, length: number): string {
+    return `${value ?? ''}`
+        .trim()
+        .replace(/[\r\n]/g, ' ')
+        .slice(0, length)
+        .padEnd(length, ' ');
+}
+
 function numeric(value: unknown, length: number): string {
     return onlyDigits(value).slice(-length).padStart(length, '0');
 }
@@ -244,8 +252,39 @@ function buildSegmentA(payment: Cnab240SicoobPaymentData, batchNumber: number, s
     ]);
 }
 
-function normalizeTipoChavePix(value: string | undefined): string {
+function isUuidV4(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+function inferTipoChavePix(chavePix: unknown): string {
+    const chave = `${chavePix ?? ''}`.trim();
+    const digits = onlyDigits(chave);
+
+    if (isUuidV4(chave)) {
+        return TIPO_CHAVE_ALEATORIA;
+    }
+
+    if (chave.includes('@')) {
+        return TIPO_CHAVE_EMAIL;
+    }
+
+    if (/^\+?\d{12,13}$/.test(chave) || /^\d{12,13}$/.test(digits)) {
+        return TIPO_CHAVE_TELEFONE;
+    }
+
+    if (digits.length === 11 || digits.length === 14) {
+        return TIPO_CHAVE_CPF_CNPJ;
+    }
+
+    throw new Error(`Tipo de chave PIX não identificado: ${chave}`);
+}
+
+function normalizeTipoChavePix(value: string | undefined, chavePix?: unknown): string {
     const normalized = `${value ?? ''}`.trim().toUpperCase();
+    if (!normalized) {
+        return inferTipoChavePix(chavePix);
+    }
+
     if (['1', '01', '001', 'TELEFONE', 'PHONE'].includes(normalized)) {
         return TIPO_CHAVE_TELEFONE;
     }
@@ -258,11 +297,12 @@ function normalizeTipoChavePix(value: string | undefined): string {
     if (['4', '04', '004', 'EVP', 'ALEATORIA', 'ALEATÓRIA', 'RANDOM'].includes(normalized)) {
         return TIPO_CHAVE_ALEATORIA;
     }
-    return TIPO_CHAVE_CPF_CNPJ;
+
+    return inferTipoChavePix(chavePix);
 }
 
 function normalizePixKey(payment: Cnab240SicoobPaymentData): string {
-    const tipoChavePix = normalizeTipoChavePix(payment.tipoChavePix);
+    const tipoChavePix = normalizeTipoChavePix(payment.tipoChavePix, payment.chavePix || payment.numeroInscricaoFavorecido);
     const rawKey = `${payment.chavePix || payment.numeroInscricaoFavorecido || ''}`.trim();
 
     if (tipoChavePix === TIPO_CHAVE_CPF_CNPJ || tipoChavePix === TIPO_CHAVE_TELEFONE) {
@@ -274,7 +314,7 @@ function normalizePixKey(payment: Cnab240SicoobPaymentData): string {
 
 function buildSegmentB(payment: Cnab240SicoobPaymentData, batchNumber: number, sequence: number): string {
     if (isPixPayment(payment)) {
-        const tipoChavePix = normalizeTipoChavePix(payment.tipoChavePix);
+        const tipoChavePix = normalizeTipoChavePix(payment.tipoChavePix, payment.chavePix || payment.numeroInscricaoFavorecido);
         const chavePix = normalizePixKey(payment);
         const informacao12 = chavePix;
 
@@ -288,11 +328,11 @@ function buildSegmentB(payment: Cnab240SicoobPaymentData, batchNumber: number, s
             numeric(tipoChavePix, 3),
             numeric(payment.tipoInscricaoFavorecido, 1),
             numeric(payment.numeroInscricaoFavorecido, 14),
-            // Manual CNAB 240 Sicoob, Segmento B/G101: TXID nas posições 33-67.
-            alpha(payment.txIdPix, 35),
+            // Manual CNAB 240 Sicoob, Segmento B/G101: Informação 10/11 em branco para PIX Transferência.
+            alpha('', 35),
             alpha('', 60),
-            // Manual CNAB 240 Sicoob, Segmento B/G101: Informação 12 recebe somente a chave PIX, sem resíduos de outros campos.
-            alpha(informacao12, 99),
+            // Manual CNAB 240 Sicoob, Segmento B/G101: Informação 12 recebe somente a chave PIX, preservando caixa.
+            alphaPreserveCase(informacao12, 99),
             alpha('', 6),
             alpha('', 8),
         ]);
@@ -462,7 +502,7 @@ export function buildCnab240SicoobPaymentRemittance(options: Cnab240SicoobOption
 
     lines.push(buildFileTrailer(batches.length, lines.length + 1));
 
-    return `${lines.join('\r\n')}\r\n`;
+    return lines.join('\r\n');
 }
 
 export function getJsonValue(item: IDataObject, path: string, fallback: unknown = ''): unknown {

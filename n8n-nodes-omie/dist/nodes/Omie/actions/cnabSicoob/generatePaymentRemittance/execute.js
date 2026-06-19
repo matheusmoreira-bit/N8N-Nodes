@@ -402,19 +402,19 @@ function getPaymentIdentificationMessage(json, missingFields) {
 function inferPixKeyType(value) {
     const trimmedValue = value.trim();
     const digits = onlyDigits(trimmedValue);
-    if (digits.length === 11 || digits.length === 14) {
-        return '003';
+    if (isUuidV4(trimmedValue)) {
+        return '004';
     }
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
         return '002';
     }
-    if (/^\+?\d{10,13}$/.test(digits)) {
+    if (/^\+?\d{12,13}$/.test(trimmedValue) || /^\d{12,13}$/.test(digits)) {
         return '001';
     }
-    if (isUuidV4(trimmedValue)) {
-        return '004';
+    if (digits.length === 11 || digits.length === 14) {
+        return '003';
     }
-    return '003';
+    throw new Error(`Tipo de chave PIX não identificado: ${trimmedValue}`);
 }
 function isUuidV4(value) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
@@ -706,11 +706,11 @@ async function execute(api) {
         if (isPixLikePayment(json)) {
             const transferDocument = onlyDigits(getFirstJsonValue(json, ['cnab_integracao_bancaria.cpf_cnpj_transferencia']));
             const rawChavePix = toStringValue(getFirstJsonValue(json, fieldPaths.chavePix));
-            const tipoChavePix = inferPixKeyType(rawChavePix);
+            const chavePix = rawChavePix || numeroInscricaoFavorecido || transferDocument;
+            const tipoChavePix = chavePix ? inferPixKeyType(chavePix) : '';
             const pixDocument = numeroInscricaoFavorecido
                 || transferDocument
-                || (tipoChavePix === '003' ? onlyDigits(rawChavePix) : '');
-            const chavePix = rawChavePix || pixDocument;
+                || (tipoChavePix === '003' ? onlyDigits(chavePix) : '');
             const nomeFavorecido = toStringValue(getFirstJsonValue(json, fieldPaths.nomeFavorecido));
             const missingPixFields = [
                 chavePix ? '' : 'Chave Pix',
