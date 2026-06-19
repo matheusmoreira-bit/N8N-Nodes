@@ -211,19 +211,22 @@ function resolveOptionalNumber(value) {
     return Number.isNaN(parsed) || parsed <= 0 ? undefined : parsed;
 }
 function extractDetailedErrorMessage(error) {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     const axiosError = error;
-    const errorMessageValue = (_c = (_b = (_a = axiosError.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.error) === null || _c === void 0 ? void 0 : _c.message;
+    if ((_a = axiosError.message) === null || _a === void 0 ? void 0 : _a.includes('Endpoint de PurchaseOrders nao encontrado')) {
+        return axiosError.message;
+    }
+    const errorMessageValue = (_d = (_c = (_b = axiosError.response) === null || _b === void 0 ? void 0 : _b.data) === null || _c === void 0 ? void 0 : _c.error) === null || _d === void 0 ? void 0 : _d.message;
     if (typeof errorMessageValue === 'string' && errorMessageValue) {
         return errorMessageValue;
     }
     if (typeof errorMessageValue === 'object' && (errorMessageValue === null || errorMessageValue === void 0 ? void 0 : errorMessageValue.value)) {
         return errorMessageValue.value;
     }
-    if ((_e = (_d = axiosError.response) === null || _d === void 0 ? void 0 : _d.data) === null || _e === void 0 ? void 0 : _e.detail) {
+    if ((_f = (_e = axiosError.response) === null || _e === void 0 ? void 0 : _e.data) === null || _f === void 0 ? void 0 : _f.detail) {
         return axiosError.response.data.detail;
     }
-    if ((_g = (_f = axiosError.response) === null || _f === void 0 ? void 0 : _f.data) === null || _g === void 0 ? void 0 : _g.message) {
+    if ((_h = (_g = axiosError.response) === null || _g === void 0 ? void 0 : _g.data) === null || _h === void 0 ? void 0 : _h.message) {
         return axiosError.response.data.message;
     }
     return axiosError.message;

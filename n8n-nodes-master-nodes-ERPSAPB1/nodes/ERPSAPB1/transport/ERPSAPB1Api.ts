@@ -65,6 +65,11 @@ interface IPaginationOptions {
     maxPages?: number;
 }
 
+interface IPurchaseOrderAttemptError {
+    endpoint: string;
+    error: unknown;
+}
+
 interface IAttachmentUploadFile {
     fileName: string;
     content: Buffer;
@@ -219,6 +224,10 @@ export class ERPSAPB1Api {
     }
 
     private normalizeEndpoint(endpoint: string): string {
+        if (/^https?:\/\//i.test(endpoint)) {
+            return endpoint;
+        }
+
         return endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     }
 
@@ -543,11 +552,11 @@ export class ERPSAPB1Api {
         await this.ensureAuthenticated();
 
         const endpoints = this.buildPurchaseOrderEndpoints();
-        let lastError: unknown;
+        const notFoundErrors: IPurchaseOrderAttemptError[] = [];
 
         const executeRequest = async (url: string): Promise<IPurchaseOrder> => {
             const response = await this.client.request<IPurchaseOrder>({
-                url,
+                url: this.normalizeEndpoint(url),
                 method: 'POST',
                 data: document,
                 headers: {
@@ -570,7 +579,7 @@ export class ERPSAPB1Api {
                         return await executeRequest(endpoint);
                     } catch (retryError) {
                         if (this.isNotFound(retryError)) {
-                            lastError = retryError;
+                            notFoundErrors.push({ endpoint, error: retryError });
                             continue;
                         }
 
@@ -582,7 +591,7 @@ export class ERPSAPB1Api {
                 }
 
                 if (this.isNotFound(error)) {
-                    lastError = error;
+                    notFoundErrors.push({ endpoint, error });
                     continue;
                 }
 
@@ -593,7 +602,15 @@ export class ERPSAPB1Api {
             }
         }
 
-        throw this.toNodeApiError(lastError ?? new Error('Endpoint de PurchaseOrders nao encontrado no Service Layer.'));
+        if (notFoundErrors.length > 0) {
+            const details = notFoundErrors
+                .map((attempt) => this.formatAxiosErrorDetail(attempt.error, attempt.endpoint, document))
+                .join(' | ');
+
+            throw this.toNodeApiError(new Error(`Endpoint de PurchaseOrders nao encontrado no Service Layer. Tentativas: ${details}`));
+        }
+
+        throw this.toNodeApiError(new Error('Endpoint de PurchaseOrders nao encontrado no Service Layer.'));
     }
 
     public async createJournalEntry(template: Partial<IJournalEntryTemplate>): Promise<ICreatedJournalEntry> {

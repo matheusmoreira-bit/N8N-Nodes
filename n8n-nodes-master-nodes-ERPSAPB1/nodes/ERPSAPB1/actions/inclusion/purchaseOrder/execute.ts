@@ -325,6 +325,10 @@ function extractDetailedErrorMessage(error: unknown): string | undefined {
         message?: string;
     };
 
+    if (axiosError.message?.includes('Endpoint de PurchaseOrders nao encontrado')) {
+        return axiosError.message;
+    }
+
     const errorMessageValue = axiosError.response?.data?.error?.message;
     if (typeof errorMessageValue === 'string' && errorMessageValue) {
         return errorMessageValue;
