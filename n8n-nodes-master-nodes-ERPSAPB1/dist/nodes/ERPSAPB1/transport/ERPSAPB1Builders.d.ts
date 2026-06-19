@@ -20,6 +20,7 @@ export interface IPurchaseOrderLineInput extends IDataObject {
     cfopCode?: string;
     usage?: number;
     warehouseCode?: string;
+    accountCode?: string;
     tipoLancamento?: string;
     costingCodes?: ICostingCodeCollection;
     dynamicFields?: IDynamicFieldCollection;

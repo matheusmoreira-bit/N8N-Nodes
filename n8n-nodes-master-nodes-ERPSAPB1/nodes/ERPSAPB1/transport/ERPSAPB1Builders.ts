@@ -29,6 +29,7 @@ export interface IPurchaseOrderLineInput extends IDataObject {
     cfopCode?: string;
     usage?: number;
     warehouseCode?: string;
+    accountCode?: string;
     tipoLancamento?: string;
     costingCodes?: ICostingCodeCollection;
     dynamicFields?: IDynamicFieldCollection;
@@ -122,6 +123,7 @@ export function buildPurchaseOrderLines(lineValues: IPurchaseOrderLineInput[]): 
             CFOPCode: lineValue.cfopCode,
             Usage: lineValue.usage,
             WarehouseCode: lineValue.warehouseCode || '99',
+            AccountCode: lineValue.accountCode,
             CostingCode: lineValue.costingCode || lineValue.costingCodes?.costingCode,
             CostingCode2: lineValue.costingCodes?.costingCode2,
             CostingCode3: lineValue.costingCodes?.costingCode3,

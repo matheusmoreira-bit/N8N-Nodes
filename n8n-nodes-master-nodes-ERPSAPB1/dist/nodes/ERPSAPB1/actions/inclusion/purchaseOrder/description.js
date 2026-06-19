@@ -469,6 +469,14 @@ exports.inclusionPurchaseOrderDescription = [
                         required: false,
                     },
                     {
+                        displayName: 'AccountCode',
+                        name: 'accountCode',
+                        type: 'string',
+                        default: '',
+                        required: false,
+                        description: 'Conta contábil da linha. Use quando precisar replicar o pedido criado manualmente no SAP.',
+                    },
+                    {
                         displayName: 'Tipo de Lançamento',
                         name: 'tipoLancamento',
                         type: 'string',
@@ -575,6 +583,6 @@ exports.inclusionPurchaseOrderDescription = [
                 ],
             },
         },
-        description: 'Aceita um array JSON no formato SAP (`ItemCode`, `ItemDescription`, `Quantity`, `UnitPrice`) ou no formato simplificado (`itemCode`, `itemDescription`, `quantity`, `unitPrice`). `CostingCode` e `ProjectCode` são opcionais. No formato simplificado, `warehouseCode` usa `99` e `tipoLancamento` usa `D` quando vazios.',
+        description: 'Aceita um array JSON no formato SAP (`ItemCode`, `ItemDescription`, `Quantity`, `UnitPrice`) ou no formato simplificado (`itemCode`, `itemDescription`, `quantity`, `unitPrice`). `AccountCode`, `CostingCode` e `ProjectCode` são opcionais. No formato simplificado, `warehouseCode` usa `99` e `tipoLancamento` usa `D` quando vazios.',
     },
 ];

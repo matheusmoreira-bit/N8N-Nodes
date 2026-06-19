@@ -62,6 +62,7 @@ function buildPurchaseOrderLines(lineValues) {
             CFOPCode: lineValue.cfopCode,
             Usage: lineValue.usage,
             WarehouseCode: lineValue.warehouseCode || '99',
+            AccountCode: lineValue.accountCode,
             CostingCode: lineValue.costingCode || ((_b = lineValue.costingCodes) === null || _b === void 0 ? void 0 : _b.costingCode),
             CostingCode2: (_c = lineValue.costingCodes) === null || _c === void 0 ? void 0 : _c.costingCode2,
             CostingCode3: (_d = lineValue.costingCodes) === null || _d === void 0 ? void 0 : _d.costingCode3,

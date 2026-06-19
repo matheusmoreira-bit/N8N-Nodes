@@ -52,6 +52,7 @@ export interface IDocumentLine extends IDataObject {
     ProjectCode?: string;
     AgreementNo?: number;
     WarehouseCode?: string;
+    AccountCode?: string;
 }
 export interface IDocumentTemplate extends IDataObject {
     Document: IDocument;
