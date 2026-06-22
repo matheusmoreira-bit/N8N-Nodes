@@ -75,6 +75,19 @@ interface IAttachmentUploadFile {
     content: Buffer;
 }
 
+interface IAttachmentUploadSummary extends IDataObject {
+    fileName: string;
+    size: number;
+}
+
+function getFormDataLength(formData: FormData): Promise<number | undefined> {
+    return new Promise((resolve) => {
+        formData.getLength((error, length) => {
+            resolve(error ? undefined : length);
+        });
+    });
+}
+
 export class ERPSAPB1Api {
 
     private readonly client: AxiosInstance;
@@ -658,15 +671,61 @@ export class ERPSAPB1Api {
     }
 
     public async createAttachmentFiles(files: IAttachmentUploadFile[]): Promise<IAttachment> {
-        const formData = new FormData();
-        files.forEach((file) => {
-            formData.append('files', file.content, file.fileName);
-        });
+        await this.ensureAuthenticated();
 
-        return this.send<IAttachment>('POST', '/Attachments2', {
-            body: formData,
-            headers: formData.getHeaders(),
-        });
+        const uploadSummary: IAttachmentUploadSummary[] = files.map((file) => ({
+            fileName: file.fileName,
+            size: file.content.length,
+        }));
+
+        const executeRequest = async (): Promise<IAttachment> => {
+            const formData = new FormData();
+            files.forEach((file) => {
+                formData.append('files', file.content, {
+                    filename: file.fileName,
+                    contentType: 'application/octet-stream',
+                });
+            });
+            const contentLength = await getFormDataLength(formData);
+            const formHeaders: Record<string, string | number> = {
+                ...formData.getHeaders(),
+            };
+
+            if (contentLength !== undefined) {
+                formHeaders['Content-Length'] = contentLength;
+            }
+
+            const response = await this.client.request<IAttachment>({
+                url: '/Attachments2',
+                method: 'POST',
+                data: formData,
+                headers: {
+                    Cookie: this.sessionCookie,
+                    Accept: 'application/json',
+                    ...formHeaders,
+                },
+                maxBodyLength: Infinity,
+                maxContentLength: Infinity,
+            });
+
+            return response.data;
+        };
+
+        try {
+            return await executeRequest();
+        } catch (error) {
+            if (this.isUnauthorized(error)) {
+                this.sessionCookie = undefined;
+                await this.ensureAuthenticated();
+                try {
+                    return await executeRequest();
+                } catch (retryError) {
+                    throw this.toNodeApiError(new Error(this.formatAxiosErrorDetail(retryError, '/Attachments2', uploadSummary)));
+                }
+            }
+
+            throw this.toNodeApiError(new Error(this.formatAxiosErrorDetail(error, '/Attachments2', uploadSummary)));
+        }
     }
 
     public async createAttachment(fileName: string, attachment: Buffer): Promise<IAttachment> {

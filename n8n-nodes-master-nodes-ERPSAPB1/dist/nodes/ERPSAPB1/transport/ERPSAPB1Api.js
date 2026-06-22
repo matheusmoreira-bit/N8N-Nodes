@@ -10,6 +10,13 @@ const https_1 = __importDefault(require("https"));
 const n8n_workflow_1 = require("n8n-workflow");
 const Interfaces_1 = require("./Interfaces");
 const text_1 = require("../utils/text");
+function getFormDataLength(formData) {
+    return new Promise((resolve) => {
+        formData.getLength((error, length) => {
+            resolve(error ? undefined : length);
+        });
+    });
+}
 class ERPSAPB1Api {
     constructor(baseUrl, authUser, authPass, authCompanyDb, functions) {
         this.baseUrl = baseUrl;
@@ -442,14 +449,56 @@ class ERPSAPB1Api {
         return Array.from(new Set(codes));
     }
     async createAttachmentFiles(files) {
-        const formData = new form_data_1.default();
-        files.forEach((file) => {
-            formData.append('files', file.content, file.fileName);
-        });
-        return this.send('POST', '/Attachments2', {
-            body: formData,
-            headers: formData.getHeaders(),
-        });
+        await this.ensureAuthenticated();
+        const uploadSummary = files.map((file) => ({
+            fileName: file.fileName,
+            size: file.content.length,
+        }));
+        const executeRequest = async () => {
+            const formData = new form_data_1.default();
+            files.forEach((file) => {
+                formData.append('files', file.content, {
+                    filename: file.fileName,
+                    contentType: 'application/octet-stream',
+                });
+            });
+            const contentLength = await getFormDataLength(formData);
+            const formHeaders = {
+                ...formData.getHeaders(),
+            };
+            if (contentLength !== undefined) {
+                formHeaders['Content-Length'] = contentLength;
+            }
+            const response = await this.client.request({
+                url: '/Attachments2',
+                method: 'POST',
+                data: formData,
+                headers: {
+                    Cookie: this.sessionCookie,
+                    Accept: 'application/json',
+                    ...formHeaders,
+                },
+                maxBodyLength: Infinity,
+                maxContentLength: Infinity,
+            });
+            return response.data;
+        };
+        try {
+            return await executeRequest();
+        }
+        catch (error) {
+            if (this.isUnauthorized(error)) {
+                this.sessionCookie = undefined;
+                await this.ensureAuthenticated();
+                try {
+                    return await executeRequest();
+                }
+                catch (retryError) {
+                    throw this.toNodeApiError(new Error(this.formatAxiosErrorDetail(retryError, '/Attachments2', uploadSummary)));
+                }
+            }
+            throw this.toNodeApiError(new Error(this.formatAxiosErrorDetail(error, '/Attachments2', uploadSummary)));
+        }
     }
     async createAttachment(fileName, attachment) {
         return this.createAttachmentFiles([{ fileName, content: attachment }]);
