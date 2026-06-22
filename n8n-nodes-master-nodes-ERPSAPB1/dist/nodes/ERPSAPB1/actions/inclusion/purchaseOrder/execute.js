@@ -261,6 +261,7 @@ async function purchaseOrder(api, index) {
     const documentLinesJson = this.getNodeParameter('documentLinesJson', index, '[]');
     const optionalFields = this.getNodeParameter('optionalFields', index, {});
     const attachmentSource = this.getNodeParameter('attachmentSource', index, 'none');
+    const requireAttachment = this.getNodeParameter('requireAttachment', index, true);
     const attachmentBinaryKeys = this.getNodeParameter('attachmentBinaryKeys', index, 'data');
     const attachmentUrlFields = this.getNodeParameter('attachmentUrls', index, {});
     try {
@@ -293,6 +294,10 @@ async function purchaseOrder(api, index) {
             throw new Error('Informe CardCode ou CNPJ/CPF do fornecedor para criar o pedido de compra.');
         }
         const attachmentEntry = await resolvePurchaseOrderAttachmentEntry.call(this, api, index, optionalFields.attachmentEntry, attachmentSource, attachmentBinaryKeys, attachmentUrlFields);
+        if (requireAttachment && !attachmentEntry) {
+            throw new Error('A regra FGR do SAP exige anexo no pedido de compra. '
+                + 'Informe um AttachmentEntry existente em Campos opcionais ou selecione Origem dos Anexos como Binário, URL ou Binário e URL.');
+        }
         const purchaseOrder = (0, ERPSAPB1Builders_1.applyDynamicFields)({
             CardCode: resolvedCardCode,
             DocDate: docDate,
@@ -320,7 +325,10 @@ async function purchaseOrder(api, index) {
         }
         const detailedMessage = extractDetailedErrorMessage(error);
         if (detailedMessage) {
-            throw new n8n_workflow_1.NodeOperationError(this.getNode(), `Nao foi possivel criar o pedido de compra. Detalhe: ${detailedMessage}.`);
+            const attachmentHint = detailedMessage.includes('OBRIGATÓRIO ANEXAR')
+                ? ' Configure Origem dos Anexos como Binário, URL ou Binário e URL, ou informe AttachmentEntry existente.'
+                : '';
+            throw new n8n_workflow_1.NodeOperationError(this.getNode(), `Nao foi possivel criar o pedido de compra. Detalhe: ${detailedMessage}.${attachmentHint}`);
         }
         throw new n8n_workflow_1.NodeOperationError(this.getNode(), 'Nao foi possivel criar o pedido de compra.');
     }

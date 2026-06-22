@@ -381,6 +381,7 @@ export async function purchaseOrder(this: IExecuteFunctions, api: ERPSAPB1Api, i
     const documentLinesJson = this.getNodeParameter('documentLinesJson', index, '[]') as string;
     const optionalFields = this.getNodeParameter('optionalFields', index, {}) as IOptionalPurchaseOrderFields;
     const attachmentSource = this.getNodeParameter('attachmentSource', index, 'none') as AttachmentSource;
+    const requireAttachment = this.getNodeParameter('requireAttachment', index, true) as boolean;
     const attachmentBinaryKeys = this.getNodeParameter('attachmentBinaryKeys', index, 'data') as string;
     const attachmentUrlFields = this.getNodeParameter('attachmentUrls', index, {}) as IAttachmentUrlsParameter;
 
@@ -427,6 +428,13 @@ export async function purchaseOrder(this: IExecuteFunctions, api: ERPSAPB1Api, i
             attachmentUrlFields,
         );
 
+        if (requireAttachment && !attachmentEntry) {
+            throw new Error(
+                'A regra FGR do SAP exige anexo no pedido de compra. '
+                + 'Informe um AttachmentEntry existente em Campos opcionais ou selecione Origem dos Anexos como Binário, URL ou Binário e URL.',
+            );
+        }
+
         const purchaseOrder = applyDynamicFields({
             CardCode: resolvedCardCode,
             DocDate: docDate,
@@ -456,9 +464,13 @@ export async function purchaseOrder(this: IExecuteFunctions, api: ERPSAPB1Api, i
 
         const detailedMessage = extractDetailedErrorMessage(error);
         if (detailedMessage) {
+            const attachmentHint = detailedMessage.includes('OBRIGATÓRIO ANEXAR')
+                ? ' Configure Origem dos Anexos como Binário, URL ou Binário e URL, ou informe AttachmentEntry existente.'
+                : '';
+
             throw new NodeOperationError(
                 this.getNode(),
-                `Nao foi possivel criar o pedido de compra. Detalhe: ${detailedMessage}.`,
+                `Nao foi possivel criar o pedido de compra. Detalhe: ${detailedMessage}.${attachmentHint}`,
             );
         }
 

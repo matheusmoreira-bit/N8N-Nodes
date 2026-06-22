@@ -259,6 +259,23 @@ exports.inclusionPurchaseOrderDescription = [
         description: 'Cria um registro em Attachments2 antes do pedido e envia o AttachmentEntry no PurchaseOrder.',
     },
     {
+        displayName: 'Anexo Obrigatório',
+        name: 'requireAttachment',
+        type: 'boolean',
+        default: true,
+        displayOptions: {
+            show: {
+                resource: [
+                    'inclusion',
+                ],
+                operation: [
+                    'purchaseOrder',
+                ],
+            },
+        },
+        description: 'Valida localmente que o pedido tenha anexo antes de chamar o SAP. A regra FGR exige NF, cupom, comprovante ou similar.',
+    },
+    {
         displayName: 'Chaves Binárias dos Anexos',
         name: 'attachmentBinaryKeys',
         type: 'string',
