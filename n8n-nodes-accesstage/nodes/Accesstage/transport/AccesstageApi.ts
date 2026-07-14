@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import FormData from 'form-data';
 import { IDataObject } from 'n8n-workflow';
 
@@ -25,15 +25,18 @@ export class AccesstageApiClient {
 	}
 
 	public async download(fileId: string): Promise<{ data: Buffer; headers: IDataObject }> {
-		const response = await this.request<Buffer>({
+		const response = await this.requestRaw<ArrayBuffer>({
 			method: 'GET',
 			url: `/download/${encodeURIComponent(fileId)}`,
 			responseType: 'arraybuffer',
+			headers: {
+				Accept: '*/*',
+			},
 		});
 
 		return {
-			data: Buffer.from(response),
-			headers: {},
+			data: Buffer.from(response.data),
+			headers: response.headers as IDataObject,
 		};
 	}
 
@@ -48,12 +51,35 @@ export class AccesstageApiClient {
 		});
 	}
 
+	public async listTransactions(from: string, to: string): Promise<IDataObject | IDataObject[]> {
+		return await this.request<IDataObject | IDataObject[]>({
+			method: 'GET',
+			url: '/list/transactions',
+			params: { from, to },
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		});
+	}
+
+	public async resubmit(fileId: string): Promise<IDataObject> {
+		return await this.request<IDataObject>({
+			method: 'GET',
+			url: `/resubmit/${encodeURIComponent(fileId)}`,
+		});
+	}
+
 	private async request<T>(config: AxiosRequestConfig): Promise<T> {
+		const response = await this.requestRaw<T>(config);
+		return response.data;
+	}
+
+	private async requestRaw<T>(config: AxiosRequestConfig): Promise<AxiosResponse<T>> {
 		const token = await this.getAccessToken();
 		const baseUrl = normalizeBaseUrl(this.credentials.baseUrl);
 
 		try {
-			const response = await axios.request<T>({
+			return await axios.request<T>({
 				...config,
 				url: `${baseUrl}${config.url ?? ''}`,
 				headers: {
@@ -62,8 +88,6 @@ export class AccesstageApiClient {
 					...(config.headers ?? {}),
 				},
 			});
-
-			return response.data;
 		} catch (error) {
 			throw formatAxiosError(error, 'Falha na chamada da API Accesstage');
 		}
@@ -109,7 +133,7 @@ function formatAxiosError(error: unknown, fallbackMessage: string): Error {
 		const axiosError = error as AxiosError;
 		const status = axiosError.response?.status;
 		const data = axiosError.response?.data;
-		const responseText = typeof data === 'string' ? data : JSON.stringify(data ?? {});
+		const responseText = stringifyResponseData(data);
 		const statusText = status ? ` HTTP ${status}.` : '';
 		return new Error(`${fallbackMessage}.${statusText} ${responseText}`.trim());
 	}
@@ -119,4 +143,20 @@ function formatAxiosError(error: unknown, fallbackMessage: string): Error {
 	}
 
 	return new Error(fallbackMessage);
+}
+
+function stringifyResponseData(data: unknown): string {
+	if (typeof data === 'string') {
+		return data;
+	}
+
+	if (Buffer.isBuffer(data)) {
+		return data.toString('utf8');
+	}
+
+	if (data instanceof ArrayBuffer) {
+		return Buffer.from(data).toString('utf8');
+	}
+
+	return JSON.stringify(data ?? {});
 }

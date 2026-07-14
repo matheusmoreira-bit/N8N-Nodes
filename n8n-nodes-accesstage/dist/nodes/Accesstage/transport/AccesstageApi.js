@@ -20,14 +20,17 @@ class AccesstageApiClient {
         return response;
     }
     async download(fileId) {
-        const response = await this.request({
+        const response = await this.requestRaw({
             method: 'GET',
             url: `/download/${encodeURIComponent(fileId)}`,
             responseType: 'arraybuffer',
+            headers: {
+                Accept: '*/*',
+            },
         });
         return {
-            data: Buffer.from(response),
-            headers: {},
+            data: Buffer.from(response.data),
+            headers: response.headers,
         };
     }
     async listFiles(from, to) {
@@ -40,12 +43,32 @@ class AccesstageApiClient {
             },
         });
     }
+    async listTransactions(from, to) {
+        return await this.request({
+            method: 'GET',
+            url: '/list/transactions',
+            params: { from, to },
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    }
+    async resubmit(fileId) {
+        return await this.request({
+            method: 'GET',
+            url: `/resubmit/${encodeURIComponent(fileId)}`,
+        });
+    }
     async request(config) {
+        const response = await this.requestRaw(config);
+        return response.data;
+    }
+    async requestRaw(config) {
         var _a, _b;
         const token = await this.getAccessToken();
         const baseUrl = normalizeBaseUrl(this.credentials.baseUrl);
         try {
-            const response = await axios_1.default.request({
+            return await axios_1.default.request({
                 ...config,
                 url: `${baseUrl}${(_a = config.url) !== null && _a !== void 0 ? _a : ''}`,
                 headers: {
@@ -54,7 +77,6 @@ class AccesstageApiClient {
                     ...((_b = config.headers) !== null && _b !== void 0 ? _b : {}),
                 },
             });
-            return response.data;
         }
         catch (error) {
             throw formatAxiosError(error, 'Falha na chamada da API Accesstage');
@@ -98,7 +120,7 @@ function formatAxiosError(error, fallbackMessage) {
         const axiosError = error;
         const status = (_a = axiosError.response) === null || _a === void 0 ? void 0 : _a.status;
         const data = (_b = axiosError.response) === null || _b === void 0 ? void 0 : _b.data;
-        const responseText = typeof data === 'string' ? data : JSON.stringify(data !== null && data !== void 0 ? data : {});
+        const responseText = stringifyResponseData(data);
         const statusText = status ? ` HTTP ${status}.` : '';
         return new Error(`${fallbackMessage}.${statusText} ${responseText}`.trim());
     }
@@ -106,4 +128,16 @@ function formatAxiosError(error, fallbackMessage) {
         return new Error(`${fallbackMessage}: ${error.message}`);
     }
     return new Error(fallbackMessage);
+}
+function stringifyResponseData(data) {
+    if (typeof data === 'string') {
+        return data;
+    }
+    if (Buffer.isBuffer(data)) {
+        return data.toString('utf8');
+    }
+    if (data instanceof ArrayBuffer) {
+        return Buffer.from(data).toString('utf8');
+    }
+    return JSON.stringify(data !== null && data !== void 0 ? data : {});
 }

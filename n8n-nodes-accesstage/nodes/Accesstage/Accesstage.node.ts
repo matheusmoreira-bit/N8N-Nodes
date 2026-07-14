@@ -63,10 +63,22 @@ export class Accesstage implements INodeType {
 						action: 'Download a file',
 					},
 					{
-						name: 'List Files',
+						name: 'List Return Files',
 						value: 'list',
-						description: 'List APUS files by date range',
-						action: 'List files',
+						description: 'List returned files available to download by date range',
+						action: 'List return files',
+					},
+					{
+						name: 'List Transactions',
+						value: 'listTransactions',
+						description: 'List remittance and return transactions by date range',
+						action: 'List transactions',
+					},
+					{
+						name: 'Resubmit File',
+						value: 'resubmit',
+						description: 'Request a file to be made available again',
+						action: 'Resubmit a file',
 					},
 				],
 				default: 'upload',
@@ -114,16 +126,17 @@ export class Accesstage implements INodeType {
 				description: 'Hash sent in the multipart field named hash. Accesstage APUS validates uploads with SHA-256.',
 			},
 			{
-				displayName: 'File ID',
+				displayName: 'Tracking ID',
 				name: 'fileId',
 				type: 'string',
 				displayOptions: {
 					show: {
-						operation: ['download'],
+						operation: ['download', 'resubmit'],
 					},
 				},
 				default: '',
 				placeholder: '00820260518105657455990618',
+				description: 'Tracking returned by the list files endpoint',
 				required: true,
 			},
 			{
@@ -157,7 +170,7 @@ export class Accesstage implements INodeType {
 				type: 'dateTime',
 				displayOptions: {
 					show: {
-						operation: ['list'],
+						operation: ['list', 'listTransactions'],
 					},
 				},
 				default: '',
@@ -169,7 +182,7 @@ export class Accesstage implements INodeType {
 				type: 'dateTime',
 				displayOptions: {
 					show: {
-						operation: ['list'],
+						operation: ['list', 'listTransactions'],
 					},
 				},
 				default: '',
@@ -233,9 +246,10 @@ export class Accesstage implements INodeType {
 				returnData.push({
 					json: {
 						operation,
-						fileId: fileId.trim(),
+						tracking: fileId.trim(),
 						fileName,
 						size: response.data.length,
+						contentType: getHeader(response.headers, 'content-type') ?? 'application/octet-stream',
 					},
 					binary: {
 						[outputBinaryPropertyName]: binaryData,
@@ -249,7 +263,7 @@ export class Accesstage implements INodeType {
 				const from = toApiDate(this.getNodeParameter('from', i, '') as string);
 				const to = toApiDate(this.getNodeParameter('to', i, '') as string);
 				const response = await client.listFiles(from, to);
-				const rows = Array.isArray(response) ? response : [response];
+				const rows = normalizeRows(response);
 
 				for (const row of rows) {
 					returnData.push({
@@ -264,6 +278,40 @@ export class Accesstage implements INodeType {
 				continue;
 			}
 
+			if (operation === 'listTransactions') {
+				const from = toApiDate(this.getNodeParameter('from', i, '') as string);
+				const to = toApiDate(this.getNodeParameter('to', i, '') as string);
+				const response = await client.listTransactions(from, to);
+				const rows = normalizeRows(response);
+
+				for (const row of rows) {
+					returnData.push({
+						json: {
+							from,
+							to,
+							...(row as IDataObject),
+						},
+						pairedItem: { item: i },
+					});
+				}
+				continue;
+			}
+
+			if (operation === 'resubmit') {
+				const fileId = this.getNodeParameter('fileId', i) as string;
+				const response = await client.resubmit(fileId.trim());
+
+				returnData.push({
+					json: {
+						operation,
+						tracking: fileId.trim(),
+						response,
+					},
+					pairedItem: { item: i },
+				});
+				continue;
+			}
+
 			throw new Error(`Operação Accesstage não suportada: ${operation}`);
 		}
 
@@ -273,8 +321,53 @@ export class Accesstage implements INodeType {
 
 function toApiDate(value: string): string {
 	if (!value) {
-		return new Date().toISOString().slice(0, 10);
+		return formatLocalDate(new Date());
+	}
+
+	if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+		return value;
+	}
+
+	const parsedDate = new Date(value);
+	if (!Number.isNaN(parsedDate.getTime())) {
+		return formatLocalDate(parsedDate);
 	}
 
 	return value.slice(0, 10);
+}
+
+function formatLocalDate(date: Date): string {
+	const year = date.getFullYear();
+	const month = `${date.getMonth() + 1}`.padStart(2, '0');
+	const day = `${date.getDate()}`.padStart(2, '0');
+
+	return `${year}-${month}-${day}`;
+}
+
+function normalizeRows(response: IDataObject | IDataObject[]): IDataObject[] {
+	if (Array.isArray(response)) {
+		return response;
+	}
+
+	const raw = response.raw;
+	if (typeof raw === 'string') {
+		try {
+			const parsed = JSON.parse(raw);
+			return Array.isArray(parsed) ? parsed : [parsed];
+		} catch {
+			return [response];
+		}
+	}
+
+	return [response];
+}
+
+function getHeader(headers: IDataObject, name: string): string | undefined {
+	const value = headers[name] ?? headers[name.toLowerCase()];
+
+	if (Array.isArray(value)) {
+		return value.join(', ');
+	}
+
+	return typeof value === 'string' ? value : undefined;
 }

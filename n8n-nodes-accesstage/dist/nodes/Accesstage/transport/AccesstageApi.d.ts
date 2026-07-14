@@ -15,7 +15,10 @@ export declare class AccesstageApiClient {
         headers: IDataObject;
     }>;
     listFiles(from: string, to: string): Promise<IDataObject | IDataObject[]>;
+    listTransactions(from: string, to: string): Promise<IDataObject | IDataObject[]>;
+    resubmit(fileId: string): Promise<IDataObject>;
     private request;
+    private requestRaw;
     private getAccessToken;
 }
 export declare function normalizeBaseUrl(baseUrl: string): string;
