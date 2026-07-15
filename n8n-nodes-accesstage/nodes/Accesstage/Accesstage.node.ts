@@ -315,19 +315,19 @@ export class Accesstage implements INodeType {
 			}
 
 			if (operation === 'download') {
-				const fileId = this.getNodeParameter('fileId', i) as string;
+				const fileId = resolveTrackingId(this.getNodeParameter('fileId', i));
 				const outputBinaryPropertyName = this.getNodeParameter('outputBinaryPropertyName', i) as string;
 				const downloadEndpoint = this.getNodeParameter('downloadEndpoint', i, 'auto') as string;
 				const configuredFileName = this.getNodeParameter('outputFileName', i) as string;
 				const fileName = configuredFileName?.trim() || `${fileId}.txt`;
-				const response = await downloadFile(client, fileId.trim(), downloadEndpoint);
+				const response = await downloadFile(client, fileId, downloadEndpoint);
 				const contentType = getHeader(response.headers, 'content-type') ?? 'application/octet-stream';
 				const binaryData = await this.helpers.prepareBinaryData(response.data, fileName, contentType);
 
 				returnData.push({
 					json: {
 						operation,
-						tracking: fileId.trim(),
+						tracking: fileId,
 						endpoint: response.endpoint,
 						fileName,
 						size: response.data.length,
@@ -342,18 +342,18 @@ export class Accesstage implements INodeType {
 			}
 
 			if (operation === 'documentDownload') {
-				const fileId = this.getNodeParameter('fileId', i) as string;
+				const fileId = resolveTrackingId(this.getNodeParameter('fileId', i));
 				const outputBinaryPropertyName = this.getNodeParameter('outputBinaryPropertyName', i) as string;
 				const configuredFileName = this.getNodeParameter('outputFileName', i) as string;
 				const fileName = configuredFileName?.trim() || `${fileId}.txt`;
-				const response = await client.documentDownload(fileId.trim());
+				const response = await client.documentDownload(fileId);
 				const contentType = getHeader(response.headers, 'content-type') ?? 'application/octet-stream';
 				const binaryData = await this.helpers.prepareBinaryData(response.data, fileName, contentType);
 
 				returnData.push({
 					json: {
 						operation,
-						tracking: fileId.trim(),
+						tracking: fileId,
 						fileName,
 						size: response.data.length,
 						contentType,
@@ -437,13 +437,13 @@ export class Accesstage implements INodeType {
 			}
 
 			if (operation === 'resubmit') {
-				const fileId = this.getNodeParameter('fileId', i) as string;
-				const response = await client.resubmit(fileId.trim());
+				const fileId = resolveTrackingId(this.getNodeParameter('fileId', i));
+				const response = await client.resubmit(fileId);
 
 				returnData.push({
 					json: {
 						operation,
-						tracking: fileId.trim(),
+						tracking: fileId,
 						response,
 					},
 					pairedItem: { item: i },
@@ -511,6 +511,27 @@ function getHeader(headers: IDataObject, name: string): string | undefined {
 	return typeof value === 'string' ? value : undefined;
 }
 
+function resolveTrackingId(value: unknown): string {
+	if (typeof value === 'number') {
+		if (!Number.isSafeInteger(value)) {
+			throw new Error('Tracking ID veio como numero inseguro. Use o tracking como texto/string, pois IDs longos do APUS perdem precisao como numero. Reexecute a listagem com esta versao do node e use o campo tracking retornado.');
+		}
+
+		return `${value}`;
+	}
+
+	const tracking = `${value ?? ''}`.trim();
+	if (!tracking) {
+		throw new Error('Tracking ID nao informado.');
+	}
+
+	if (/^-?\d+e\+\d+$/i.test(tracking)) {
+		throw new Error('Tracking ID veio em notacao cientifica. Use o tracking como texto/string, pois IDs longos do APUS perdem precisao como numero.');
+	}
+
+	return tracking;
+}
+
 async function downloadFile(
 	client: AccesstageApiClient,
 	fileId: string,
@@ -543,11 +564,19 @@ async function downloadFile(
 			throw error;
 		}
 
-		const response = await client.documentDownload(fileId);
-		return {
-			...response,
-			endpoint: 'document',
-		};
+		try {
+			const response = await client.documentDownload(fileId);
+			return {
+				...response,
+				endpoint: 'document',
+			};
+		} catch (documentError) {
+			if (!isDownloadNotFoundError(documentError)) {
+				throw documentError;
+			}
+
+			throw new Error(`Arquivo nao encontrado em /download nem em /document/download para o tracking "${fileId}". Confirme se o tracking veio da listagem no mesmo ambiente da credencial (homologacao/producao). Se o tracking veio de uma listagem antiga ou como numero, reexecute a listagem com esta versao do node para preservar o ID longo como texto.`);
+		}
 	}
 }
 

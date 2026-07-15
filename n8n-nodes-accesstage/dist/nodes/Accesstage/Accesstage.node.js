@@ -310,18 +310,18 @@ class Accesstage {
                 continue;
             }
             if (operation === 'download') {
-                const fileId = this.getNodeParameter('fileId', i);
+                const fileId = resolveTrackingId(this.getNodeParameter('fileId', i));
                 const outputBinaryPropertyName = this.getNodeParameter('outputBinaryPropertyName', i);
                 const downloadEndpoint = this.getNodeParameter('downloadEndpoint', i, 'auto');
                 const configuredFileName = this.getNodeParameter('outputFileName', i);
                 const fileName = (configuredFileName === null || configuredFileName === void 0 ? void 0 : configuredFileName.trim()) || `${fileId}.txt`;
-                const response = await downloadFile(client, fileId.trim(), downloadEndpoint);
+                const response = await downloadFile(client, fileId, downloadEndpoint);
                 const contentType = (_c = getHeader(response.headers, 'content-type')) !== null && _c !== void 0 ? _c : 'application/octet-stream';
                 const binaryData = await this.helpers.prepareBinaryData(response.data, fileName, contentType);
                 returnData.push({
                     json: {
                         operation,
-                        tracking: fileId.trim(),
+                        tracking: fileId,
                         endpoint: response.endpoint,
                         fileName,
                         size: response.data.length,
@@ -335,17 +335,17 @@ class Accesstage {
                 continue;
             }
             if (operation === 'documentDownload') {
-                const fileId = this.getNodeParameter('fileId', i);
+                const fileId = resolveTrackingId(this.getNodeParameter('fileId', i));
                 const outputBinaryPropertyName = this.getNodeParameter('outputBinaryPropertyName', i);
                 const configuredFileName = this.getNodeParameter('outputFileName', i);
                 const fileName = (configuredFileName === null || configuredFileName === void 0 ? void 0 : configuredFileName.trim()) || `${fileId}.txt`;
-                const response = await client.documentDownload(fileId.trim());
+                const response = await client.documentDownload(fileId);
                 const contentType = (_d = getHeader(response.headers, 'content-type')) !== null && _d !== void 0 ? _d : 'application/octet-stream';
                 const binaryData = await this.helpers.prepareBinaryData(response.data, fileName, contentType);
                 returnData.push({
                     json: {
                         operation,
-                        tracking: fileId.trim(),
+                        tracking: fileId,
                         fileName,
                         size: response.data.length,
                         contentType,
@@ -420,12 +420,12 @@ class Accesstage {
                 continue;
             }
             if (operation === 'resubmit') {
-                const fileId = this.getNodeParameter('fileId', i);
-                const response = await client.resubmit(fileId.trim());
+                const fileId = resolveTrackingId(this.getNodeParameter('fileId', i));
+                const response = await client.resubmit(fileId);
                 returnData.push({
                     json: {
                         operation,
-                        tracking: fileId.trim(),
+                        tracking: fileId,
                         response,
                     },
                     pairedItem: { item: i },
@@ -481,6 +481,22 @@ function getHeader(headers, name) {
     }
     return typeof value === 'string' ? value : undefined;
 }
+function resolveTrackingId(value) {
+    if (typeof value === 'number') {
+        if (!Number.isSafeInteger(value)) {
+            throw new Error('Tracking ID veio como numero inseguro. Use o tracking como texto/string, pois IDs longos do APUS perdem precisao como numero. Reexecute a listagem com esta versao do node e use o campo tracking retornado.');
+        }
+        return `${value}`;
+    }
+    const tracking = `${value !== null && value !== void 0 ? value : ''}`.trim();
+    if (!tracking) {
+        throw new Error('Tracking ID nao informado.');
+    }
+    if (/^-?\d+e\+\d+$/i.test(tracking)) {
+        throw new Error('Tracking ID veio em notacao cientifica. Use o tracking como texto/string, pois IDs longos do APUS perdem precisao como numero.');
+    }
+    return tracking;
+}
 async function downloadFile(client, fileId, downloadEndpoint) {
     if (downloadEndpoint === 'document') {
         const response = await client.documentDownload(fileId);
@@ -507,11 +523,19 @@ async function downloadFile(client, fileId, downloadEndpoint) {
         if (!isDownloadNotFoundError(error)) {
             throw error;
         }
-        const response = await client.documentDownload(fileId);
-        return {
-            ...response,
-            endpoint: 'document',
-        };
+        try {
+            const response = await client.documentDownload(fileId);
+            return {
+                ...response,
+                endpoint: 'document',
+            };
+        }
+        catch (documentError) {
+            if (!isDownloadNotFoundError(documentError)) {
+                throw documentError;
+            }
+            throw new Error(`Arquivo nao encontrado em /download nem em /document/download para o tracking "${fileId}". Confirme se o tracking veio da listagem no mesmo ambiente da credencial (homologacao/producao). Se o tracking veio de uma listagem antiga ou como numero, reexecute a listagem com esta versao do node para preservar o ID longo como texto.`);
+        }
     }
 }
 function isDownloadNotFoundError(error) {

@@ -107,8 +107,12 @@ export class AccesstageApiClient {
 	}
 
 	private async request<T>(config: AxiosRequestConfig): Promise<T> {
-		const response = await this.requestRaw<T>(config);
-		return response.data;
+		const response = await this.requestRaw<unknown>({
+			...config,
+			transformResponse: [(data) => data],
+		});
+
+		return parseResponseData(response.data) as T;
 	}
 
 	private async requestRaw<T>(config: AxiosRequestConfig): Promise<AxiosResponse<T>> {
@@ -196,4 +200,25 @@ function stringifyResponseData(data: unknown): string {
 	}
 
 	return JSON.stringify(data ?? {});
+}
+
+function parseResponseData(data: unknown): unknown {
+	if (typeof data !== 'string') {
+		return data;
+	}
+
+	const trimmed = data.trim();
+	if (!trimmed) {
+		return {};
+	}
+
+	if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+		return data;
+	}
+
+	return JSON.parse(quoteLongJsonIntegers(trimmed));
+}
+
+function quoteLongJsonIntegers(json: string): string {
+	return json.replace(/([:[,]\s*)(-?\d{16,})(?=\s*[,}\]])/g, '$1"$2"');
 }

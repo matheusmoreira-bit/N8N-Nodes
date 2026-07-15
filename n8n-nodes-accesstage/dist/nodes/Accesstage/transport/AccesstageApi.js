@@ -93,8 +93,11 @@ class AccesstageApiClient {
         });
     }
     async request(config) {
-        const response = await this.requestRaw(config);
-        return response.data;
+        const response = await this.requestRaw({
+            ...config,
+            transformResponse: [(data) => data],
+        });
+        return parseResponseData(response.data);
     }
     async requestRaw(config) {
         var _a, _b;
@@ -173,4 +176,20 @@ function stringifyResponseData(data) {
         return Buffer.from(data).toString('utf8');
     }
     return JSON.stringify(data !== null && data !== void 0 ? data : {});
+}
+function parseResponseData(data) {
+    if (typeof data !== 'string') {
+        return data;
+    }
+    const trimmed = data.trim();
+    if (!trimmed) {
+        return {};
+    }
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+        return data;
+    }
+    return JSON.parse(quoteLongJsonIntegers(trimmed));
+}
+function quoteLongJsonIntegers(json) {
+    return json.replace(/([:[,]\s*)(-?\d{16,})(?=\s*[,}\]])/g, '$1"$2"');
 }
