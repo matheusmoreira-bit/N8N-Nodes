@@ -170,6 +170,32 @@ export class Accesstage implements INodeType {
 				required: true,
 			},
 			{
+				displayName: 'Download Endpoint',
+				name: 'downloadEndpoint',
+				type: 'options',
+				displayOptions: {
+					show: {
+						operation: ['download'],
+					},
+				},
+				options: [
+					{
+						name: 'Auto',
+						value: 'auto',
+					},
+					{
+						name: 'File (/download)',
+						value: 'file',
+					},
+					{
+						name: 'Document (/document/download)',
+						value: 'document',
+					},
+				],
+				default: 'auto',
+				description: 'Endpoint usado para baixar o arquivo. Auto tenta /download e, se o arquivo nao existir, tenta /document/download.',
+			},
+			{
 				displayName: 'Output File Name',
 				name: 'outputFileName',
 				type: 'string',
@@ -291,18 +317,21 @@ export class Accesstage implements INodeType {
 			if (operation === 'download') {
 				const fileId = this.getNodeParameter('fileId', i) as string;
 				const outputBinaryPropertyName = this.getNodeParameter('outputBinaryPropertyName', i) as string;
+				const downloadEndpoint = this.getNodeParameter('downloadEndpoint', i, 'auto') as string;
 				const configuredFileName = this.getNodeParameter('outputFileName', i) as string;
 				const fileName = configuredFileName?.trim() || `${fileId}.txt`;
-				const response = await client.download(fileId.trim());
-				const binaryData = await this.helpers.prepareBinaryData(response.data, fileName, 'application/octet-stream');
+				const response = await downloadFile(client, fileId.trim(), downloadEndpoint);
+				const contentType = getHeader(response.headers, 'content-type') ?? 'application/octet-stream';
+				const binaryData = await this.helpers.prepareBinaryData(response.data, fileName, contentType);
 
 				returnData.push({
 					json: {
 						operation,
 						tracking: fileId.trim(),
+						endpoint: response.endpoint,
 						fileName,
 						size: response.data.length,
-						contentType: getHeader(response.headers, 'content-type') ?? 'application/octet-stream',
+						contentType,
 					},
 					binary: {
 						[outputBinaryPropertyName]: binaryData,
@@ -480,6 +509,55 @@ function getHeader(headers: IDataObject, name: string): string | undefined {
 	}
 
 	return typeof value === 'string' ? value : undefined;
+}
+
+async function downloadFile(
+	client: AccesstageApiClient,
+	fileId: string,
+	downloadEndpoint: string,
+): Promise<{ data: Buffer; headers: IDataObject; endpoint: 'file' | 'document' }> {
+	if (downloadEndpoint === 'document') {
+		const response = await client.documentDownload(fileId);
+		return {
+			...response,
+			endpoint: 'document',
+		};
+	}
+
+	if (downloadEndpoint === 'file') {
+		const response = await client.download(fileId);
+		return {
+			...response,
+			endpoint: 'file',
+		};
+	}
+
+	try {
+		const response = await client.download(fileId);
+		return {
+			...response,
+			endpoint: 'file',
+		};
+	} catch (error) {
+		if (!isDownloadNotFoundError(error)) {
+			throw error;
+		}
+
+		const response = await client.documentDownload(fileId);
+		return {
+			...response,
+			endpoint: 'document',
+		};
+	}
+}
+
+function isDownloadNotFoundError(error: unknown): boolean {
+	if (!(error instanceof Error)) {
+		return false;
+	}
+
+	return error.message.includes('Arquivo não encontrado para download')
+		|| error.message.includes('Arquivo nao encontrado para download');
 }
 
 function parseJsonObject(value: unknown, fieldName: string): IDataObject {

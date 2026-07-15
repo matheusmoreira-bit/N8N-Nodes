@@ -168,6 +168,32 @@ class Accesstage {
                     required: true,
                 },
                 {
+                    displayName: 'Download Endpoint',
+                    name: 'downloadEndpoint',
+                    type: 'options',
+                    displayOptions: {
+                        show: {
+                            operation: ['download'],
+                        },
+                    },
+                    options: [
+                        {
+                            name: 'Auto',
+                            value: 'auto',
+                        },
+                        {
+                            name: 'File (/download)',
+                            value: 'file',
+                        },
+                        {
+                            name: 'Document (/document/download)',
+                            value: 'document',
+                        },
+                    ],
+                    default: 'auto',
+                    description: 'Endpoint usado para baixar o arquivo. Auto tenta /download e, se o arquivo nao existir, tenta /document/download.',
+                },
+                {
                     displayName: 'Output File Name',
                     name: 'outputFileName',
                     type: 'string',
@@ -286,17 +312,20 @@ class Accesstage {
             if (operation === 'download') {
                 const fileId = this.getNodeParameter('fileId', i);
                 const outputBinaryPropertyName = this.getNodeParameter('outputBinaryPropertyName', i);
+                const downloadEndpoint = this.getNodeParameter('downloadEndpoint', i, 'auto');
                 const configuredFileName = this.getNodeParameter('outputFileName', i);
                 const fileName = (configuredFileName === null || configuredFileName === void 0 ? void 0 : configuredFileName.trim()) || `${fileId}.txt`;
-                const response = await client.download(fileId.trim());
-                const binaryData = await this.helpers.prepareBinaryData(response.data, fileName, 'application/octet-stream');
+                const response = await downloadFile(client, fileId.trim(), downloadEndpoint);
+                const contentType = (_c = getHeader(response.headers, 'content-type')) !== null && _c !== void 0 ? _c : 'application/octet-stream';
+                const binaryData = await this.helpers.prepareBinaryData(response.data, fileName, contentType);
                 returnData.push({
                     json: {
                         operation,
                         tracking: fileId.trim(),
+                        endpoint: response.endpoint,
                         fileName,
                         size: response.data.length,
-                        contentType: (_c = getHeader(response.headers, 'content-type')) !== null && _c !== void 0 ? _c : 'application/octet-stream',
+                        contentType,
                     },
                     binary: {
                         [outputBinaryPropertyName]: binaryData,
@@ -451,6 +480,46 @@ function getHeader(headers, name) {
         return value.join(', ');
     }
     return typeof value === 'string' ? value : undefined;
+}
+async function downloadFile(client, fileId, downloadEndpoint) {
+    if (downloadEndpoint === 'document') {
+        const response = await client.documentDownload(fileId);
+        return {
+            ...response,
+            endpoint: 'document',
+        };
+    }
+    if (downloadEndpoint === 'file') {
+        const response = await client.download(fileId);
+        return {
+            ...response,
+            endpoint: 'file',
+        };
+    }
+    try {
+        const response = await client.download(fileId);
+        return {
+            ...response,
+            endpoint: 'file',
+        };
+    }
+    catch (error) {
+        if (!isDownloadNotFoundError(error)) {
+            throw error;
+        }
+        const response = await client.documentDownload(fileId);
+        return {
+            ...response,
+            endpoint: 'document',
+        };
+    }
+}
+function isDownloadNotFoundError(error) {
+    if (!(error instanceof Error)) {
+        return false;
+    }
+    return error.message.includes('Arquivo não encontrado para download')
+        || error.message.includes('Arquivo nao encontrado para download');
 }
 function parseJsonObject(value, fieldName) {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
