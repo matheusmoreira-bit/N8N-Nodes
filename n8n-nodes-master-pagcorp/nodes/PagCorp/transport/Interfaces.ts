@@ -23,3 +23,25 @@ export interface IGetExpensesResult {
     items: IDataObject[];
     pagesFetched: number;
 }
+
+export interface IUploadCnabOptions {
+    endpointPath: string;
+    requestFormat: 'multipart' | 'raw';
+    fileContent: Buffer;
+    fileName: string;
+    mimeType: string;
+    formFileFieldName: string;
+    formFields: IDataObject;
+    queryParameters: IDataObject;
+}
+
+export interface IListCnabReturnsOptions {
+    endpointPath: string;
+    queryParameters: IDataObject;
+}
+
+export interface IDownloadCnabReturnOptions {
+    endpointPath: string;
+    returnId: string;
+    queryParameters: IDataObject;
+}

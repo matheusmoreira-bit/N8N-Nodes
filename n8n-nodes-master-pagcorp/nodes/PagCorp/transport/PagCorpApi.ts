@@ -1,5 +1,6 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import crypto from 'crypto';
+import FormData from 'form-data';
 import https from 'https';
 import {
     IDataObject,
@@ -9,10 +10,13 @@ import {
 
 import {
     IClientAuthResponse,
+    IDownloadCnabReturnOptions,
     IExpensesResponse,
     IGetExpensesOptions,
     IGetExpensesResult,
+    IListCnabReturnsOptions,
     ILoginResponse,
+    IUploadCnabOptions,
 } from './Interfaces';
 
 interface IJwtPayload extends IDataObject {
@@ -165,6 +169,121 @@ export class PagCorpApi {
         } catch (error) {
             throw this.toNodeApiError(error);
         }
+    }
+
+    private async requestRaw<T>(config: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+        const clientToken = await this.getClientToken();
+        const apiToken = await this.getApiToken(clientToken);
+
+        try {
+            return await this.client.request<T>({
+                ...config,
+                url: this.normalizeEndpointPath(`${config.url ?? ''}`),
+                headers: {
+                    Authorization: `Bearer ${apiToken}`,
+                    ...(config.headers ?? {}),
+                },
+            });
+        } catch (error) {
+            throw this.toNodeApiError(error);
+        }
+    }
+
+    private async request<T>(config: AxiosRequestConfig): Promise<T> {
+        const response = await this.requestRaw<T>(config);
+        return response.data;
+    }
+
+    private normalizeEndpointPath(path: string): string {
+        return path.trim().replace(/^\/+/, '');
+    }
+
+    private appendFormField(form: FormData, fieldName: string, value: unknown): void {
+        if (value === undefined || value === null) {
+            return;
+        }
+
+        if (Buffer.isBuffer(value)) {
+            form.append(fieldName, value);
+            return;
+        }
+
+        if (typeof value === 'object') {
+            form.append(fieldName, JSON.stringify(value));
+            return;
+        }
+
+        form.append(fieldName, `${value}`);
+    }
+
+    private endpointWithReturnId(endpointPath: string, returnId: string): string {
+        if (endpointPath.includes('{returnId}')) {
+            return endpointPath.replace(/\{returnId\}/g, encodeURIComponent(returnId));
+        }
+
+        return `${endpointPath.replace(/\/+$/, '')}/${encodeURIComponent(returnId)}`;
+    }
+
+    public async uploadCnab(options: IUploadCnabOptions): Promise<IDataObject | string> {
+        if (options.requestFormat === 'raw') {
+            return await this.request<IDataObject | string>({
+                method: 'POST',
+                url: options.endpointPath,
+                params: options.queryParameters,
+                data: options.fileContent,
+                headers: {
+                    'Content-Type': options.mimeType,
+                    'Content-Disposition': `attachment; filename="${options.fileName.replace(/"/g, '\\"')}"`,
+                },
+            });
+        }
+
+        const form = new FormData();
+        for (const [fieldName, value] of Object.entries(options.formFields)) {
+            this.appendFormField(form, fieldName, value);
+        }
+
+        form.append(options.formFileFieldName, options.fileContent, {
+            filename: options.fileName,
+            contentType: options.mimeType,
+        });
+
+        return await this.request<IDataObject | string>({
+            method: 'POST',
+            url: options.endpointPath,
+            params: options.queryParameters,
+            data: form,
+            headers: form.getHeaders(),
+        });
+    }
+
+    public async listCnabReturns(options: IListCnabReturnsOptions): Promise<IDataObject | IDataObject[] | string> {
+        return await this.request<IDataObject | IDataObject[] | string>({
+            method: 'GET',
+            url: options.endpointPath,
+            params: options.queryParameters,
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+    }
+
+    public async downloadCnabReturn(options: IDownloadCnabReturnOptions): Promise<{ data: Buffer; headers: IDataObject }> {
+        const endpointPath = this.endpointWithReturnId(options.endpointPath, options.returnId);
+        const response = await this.requestRaw<ArrayBuffer>({
+            method: 'GET',
+            url: endpointPath,
+            params: options.queryParameters,
+            responseType: 'arraybuffer',
+            headers: {
+                Accept: '*/*',
+            },
+        });
+
+        return {
+            data: Buffer.from(response.data),
+            headers: response.headers as IDataObject,
+        };
     }
 
     public async getExpensesByAccount(options: IGetExpensesOptions): Promise<IGetExpensesResult> {

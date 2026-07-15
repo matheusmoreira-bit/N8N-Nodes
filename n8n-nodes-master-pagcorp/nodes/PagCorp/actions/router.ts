@@ -1,5 +1,6 @@
 import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 
+import * as cnab from './cnab';
 import * as expense from './expense';
 import { PagCorpEntity } from './Interfaces';
 
@@ -21,6 +22,10 @@ export async function router(this: IExecuteFunctions, api: PagCorpApi): Promise<
         try {
             if (pagcorp.resource === 'expense') {
                 operationResult.push(...await expense[pagcorp.operation].execute.call(this, api, i));
+            }
+
+            if (pagcorp.resource === 'cnab') {
+                operationResult.push(...await cnab[pagcorp.operation].execute.call(this, api, i));
             }
         } catch (err: any) {
             if (this.continueOnFail()) {

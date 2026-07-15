@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.router = router;
+const cnab = __importStar(require("./cnab"));
 const expense = __importStar(require("./expense"));
 async function router(api) {
     const items = this.getInputData();
@@ -48,6 +49,9 @@ async function router(api) {
         try {
             if (pagcorp.resource === 'expense') {
                 operationResult.push(...await expense[pagcorp.operation].execute.call(this, api, i));
+            }
+            if (pagcorp.resource === 'cnab') {
+                operationResult.push(...await cnab[pagcorp.operation].execute.call(this, api, i));
             }
         }
         catch (err) {

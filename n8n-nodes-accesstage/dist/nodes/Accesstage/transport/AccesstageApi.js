@@ -33,6 +33,30 @@ class AccesstageApiClient {
             headers: response.headers,
         };
     }
+    async documentDownload(fileId) {
+        const response = await this.requestRaw({
+            method: 'GET',
+            url: `/document/download/${encodeURIComponent(fileId)}`,
+            responseType: 'arraybuffer',
+            headers: {
+                Accept: '*/*',
+            },
+        });
+        return {
+            data: Buffer.from(response.data),
+            headers: response.headers,
+        };
+    }
+    async documentUpload(companyCode, body) {
+        return await this.request({
+            method: 'POST',
+            url: `/document/upload/${encodeURIComponent(companyCode)}`,
+            data: body,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    }
     async listFiles(from, to) {
         return await this.request({
             method: 'GET',
@@ -40,6 +64,15 @@ class AccesstageApiClient {
             params: { from, to },
             headers: {
                 'Content-Type': 'application/json',
+            },
+        });
+    }
+    async listPartnership() {
+        return await this.request({
+            method: 'GET',
+            url: '/list/partnership',
+            headers: {
+                Accept: 'application/json',
             },
         });
     }

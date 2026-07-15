@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PagCorpApi = void 0;
 const axios_1 = __importDefault(require("axios"));
 const crypto_1 = __importDefault(require("crypto"));
+const form_data_1 = __importDefault(require("form-data"));
 const https_1 = __importDefault(require("https"));
 const n8n_workflow_1 = require("n8n-workflow");
 class PagCorpApi {
@@ -116,6 +117,106 @@ class PagCorpApi {
         catch (error) {
             throw this.toNodeApiError(error);
         }
+    }
+    async requestRaw(config) {
+        var _a, _b;
+        const clientToken = await this.getClientToken();
+        const apiToken = await this.getApiToken(clientToken);
+        try {
+            return await this.client.request({
+                ...config,
+                url: this.normalizeEndpointPath(`${(_a = config.url) !== null && _a !== void 0 ? _a : ''}`),
+                headers: {
+                    Authorization: `Bearer ${apiToken}`,
+                    ...((_b = config.headers) !== null && _b !== void 0 ? _b : {}),
+                },
+            });
+        }
+        catch (error) {
+            throw this.toNodeApiError(error);
+        }
+    }
+    async request(config) {
+        const response = await this.requestRaw(config);
+        return response.data;
+    }
+    normalizeEndpointPath(path) {
+        return path.trim().replace(/^\/+/, '');
+    }
+    appendFormField(form, fieldName, value) {
+        if (value === undefined || value === null) {
+            return;
+        }
+        if (Buffer.isBuffer(value)) {
+            form.append(fieldName, value);
+            return;
+        }
+        if (typeof value === 'object') {
+            form.append(fieldName, JSON.stringify(value));
+            return;
+        }
+        form.append(fieldName, `${value}`);
+    }
+    endpointWithReturnId(endpointPath, returnId) {
+        if (endpointPath.includes('{returnId}')) {
+            return endpointPath.replace(/\{returnId\}/g, encodeURIComponent(returnId));
+        }
+        return `${endpointPath.replace(/\/+$/, '')}/${encodeURIComponent(returnId)}`;
+    }
+    async uploadCnab(options) {
+        if (options.requestFormat === 'raw') {
+            return await this.request({
+                method: 'POST',
+                url: options.endpointPath,
+                params: options.queryParameters,
+                data: options.fileContent,
+                headers: {
+                    'Content-Type': options.mimeType,
+                    'Content-Disposition': `attachment; filename="${options.fileName.replace(/"/g, '\\"')}"`,
+                },
+            });
+        }
+        const form = new form_data_1.default();
+        for (const [fieldName, value] of Object.entries(options.formFields)) {
+            this.appendFormField(form, fieldName, value);
+        }
+        form.append(options.formFileFieldName, options.fileContent, {
+            filename: options.fileName,
+            contentType: options.mimeType,
+        });
+        return await this.request({
+            method: 'POST',
+            url: options.endpointPath,
+            params: options.queryParameters,
+            data: form,
+            headers: form.getHeaders(),
+        });
+    }
+    async listCnabReturns(options) {
+        return await this.request({
+            method: 'GET',
+            url: options.endpointPath,
+            params: options.queryParameters,
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+    }
+    async downloadCnabReturn(options) {
+        const endpointPath = this.endpointWithReturnId(options.endpointPath, options.returnId);
+        const response = await this.requestRaw({
+            method: 'GET',
+            url: endpointPath,
+            params: options.queryParameters,
+            responseType: 'arraybuffer',
+            headers: {
+                Accept: '*/*',
+            },
+        });
+        return {
+            data: Buffer.from(response.data),
+            headers: response.headers,
+        };
     }
     async getExpensesByAccount(options) {
         var _a, _b;

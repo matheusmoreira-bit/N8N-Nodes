@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PagCorp = void 0;
+const cnab = __importStar(require("./actions/cnab"));
 const expense = __importStar(require("./actions/expense"));
 const router_1 = require("./actions/router");
 const PagCorpApi_1 = require("./transport/PagCorpApi");
@@ -43,7 +44,7 @@ class PagCorp {
             displayName: 'PagCorp',
             name: 'pagCorp',
             group: ['output'],
-            description: 'Consulta despesas na API PagCorp com autenticação criptografada',
+            description: 'Consulta despesas e opera arquivos CNAB na API PagCorp com autenticação criptografada',
             icon: 'file:pagcorp.png',
             version: 1,
             defaults: {
@@ -59,6 +60,10 @@ class PagCorp {
                     type: 'options',
                     options: [
                         {
+                            name: 'CNAB',
+                            value: 'cnab',
+                        },
+                        {
                             name: 'Expense',
                             value: 'expense',
                         },
@@ -66,6 +71,7 @@ class PagCorp {
                     default: 'expense',
                     description: 'Recurso a ser utilizado',
                 },
+                ...cnab.descriptions,
                 ...expense.descriptions,
             ],
         };

@@ -61,6 +61,24 @@ class Accesstage {
                             action: 'Download a file',
                         },
                         {
+                            name: 'Document Download',
+                            value: 'documentDownload',
+                            description: 'Download a document file from APUS',
+                            action: 'Download a document',
+                        },
+                        {
+                            name: 'Document Upload',
+                            value: 'documentUpload',
+                            description: 'Upload a JSON document to APUS',
+                            action: 'Upload a document',
+                        },
+                        {
+                            name: 'List Partnership',
+                            value: 'listPartnership',
+                            description: 'List APUS partnerships',
+                            action: 'List partnerships',
+                        },
+                        {
                             name: 'List Return Files',
                             value: 'list',
                             description: 'List returned files available to download by date range',
@@ -87,12 +105,12 @@ class Accesstage {
                     type: 'string',
                     displayOptions: {
                         show: {
-                            operation: ['upload'],
+                            operation: ['upload', 'documentUpload'],
                         },
                     },
                     default: '',
                     placeholder: '2429631',
-                    description: 'Code used in the upload endpoint path',
+                    description: 'Code used as pdsid in the upload endpoint path',
                     required: true,
                 },
                 {
@@ -129,7 +147,7 @@ class Accesstage {
                     type: 'string',
                     displayOptions: {
                         show: {
-                            operation: ['download', 'resubmit'],
+                            operation: ['download', 'documentDownload', 'resubmit'],
                         },
                     },
                     default: '',
@@ -143,7 +161,7 @@ class Accesstage {
                     type: 'string',
                     displayOptions: {
                         show: {
-                            operation: ['download'],
+                            operation: ['download', 'documentDownload'],
                         },
                     },
                     default: 'data',
@@ -155,7 +173,7 @@ class Accesstage {
                     type: 'string',
                     displayOptions: {
                         show: {
-                            operation: ['download'],
+                            operation: ['download', 'documentDownload'],
                         },
                     },
                     default: '',
@@ -186,11 +204,46 @@ class Accesstage {
                     default: '',
                     description: 'End date. If empty, today is used.',
                 },
+                {
+                    displayName: 'Document Body Source',
+                    name: 'documentBodySource',
+                    type: 'options',
+                    displayOptions: {
+                        show: {
+                            operation: ['documentUpload'],
+                        },
+                    },
+                    options: [
+                        {
+                            name: 'Input Item JSON',
+                            value: 'inputJson',
+                        },
+                        {
+                            name: 'JSON Parameter',
+                            value: 'jsonParameter',
+                        },
+                    ],
+                    default: 'inputJson',
+                    description: 'Origem do JSON enviado no corpo do document upload',
+                },
+                {
+                    displayName: 'Document Body JSON',
+                    name: 'documentBodyJson',
+                    type: 'json',
+                    displayOptions: {
+                        show: {
+                            operation: ['documentUpload'],
+                            documentBodySource: ['jsonParameter'],
+                        },
+                    },
+                    default: '{}',
+                    description: 'Objeto JSON enviado para /document/upload/{pdsid}',
+                },
             ],
         };
     }
     async execute() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         const inputItems = this.getInputData();
         const items = inputItems.length > 0 ? inputItems : [{ json: {} }];
         const operation = this.getNodeParameter('operation', 0);
@@ -252,6 +305,46 @@ class Accesstage {
                 });
                 continue;
             }
+            if (operation === 'documentDownload') {
+                const fileId = this.getNodeParameter('fileId', i);
+                const outputBinaryPropertyName = this.getNodeParameter('outputBinaryPropertyName', i);
+                const configuredFileName = this.getNodeParameter('outputFileName', i);
+                const fileName = (configuredFileName === null || configuredFileName === void 0 ? void 0 : configuredFileName.trim()) || `${fileId}.txt`;
+                const response = await client.documentDownload(fileId.trim());
+                const contentType = (_d = getHeader(response.headers, 'content-type')) !== null && _d !== void 0 ? _d : 'application/octet-stream';
+                const binaryData = await this.helpers.prepareBinaryData(response.data, fileName, contentType);
+                returnData.push({
+                    json: {
+                        operation,
+                        tracking: fileId.trim(),
+                        fileName,
+                        size: response.data.length,
+                        contentType,
+                    },
+                    binary: {
+                        [outputBinaryPropertyName]: binaryData,
+                    },
+                    pairedItem: { item: i },
+                });
+                continue;
+            }
+            if (operation === 'documentUpload') {
+                const companyCode = this.getNodeParameter('companyCode', i);
+                const documentBodySource = this.getNodeParameter('documentBodySource', i);
+                const body = documentBodySource === 'jsonParameter'
+                    ? parseJsonObject(this.getNodeParameter('documentBodyJson', i), 'Document Body JSON')
+                    : items[i].json;
+                const response = await client.documentUpload(companyCode.trim(), body);
+                returnData.push({
+                    json: {
+                        operation,
+                        companyCode: companyCode.trim(),
+                        response,
+                    },
+                    pairedItem: { item: i },
+                });
+                continue;
+            }
             if (operation === 'list') {
                 const from = toApiDate(this.getNodeParameter('from', i, ''));
                 const to = toApiDate(this.getNodeParameter('to', i, ''));
@@ -264,6 +357,17 @@ class Accesstage {
                             to,
                             ...row,
                         },
+                        pairedItem: { item: i },
+                    });
+                }
+                continue;
+            }
+            if (operation === 'listPartnership') {
+                const response = await client.listPartnership();
+                const rows = normalizeRows(response);
+                for (const row of rows) {
+                    returnData.push({
+                        json: row,
                         pairedItem: { item: i },
                     });
                 }
@@ -347,4 +451,25 @@ function getHeader(headers, name) {
         return value.join(', ');
     }
     return typeof value === 'string' ? value : undefined;
+}
+function parseJsonObject(value, fieldName) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return value;
+    }
+    if (typeof value !== 'string') {
+        throw new Error(`${fieldName} must be a JSON object.`);
+    }
+    try {
+        const parsed = JSON.parse(value);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error(`${fieldName} must be a JSON object.`);
+        }
+        return parsed;
+    }
+    catch (error) {
+        if (error instanceof Error && error.message.includes('must be a JSON object')) {
+            throw error;
+        }
+        throw new Error(`${fieldName} contains invalid JSON.`);
+    }
 }

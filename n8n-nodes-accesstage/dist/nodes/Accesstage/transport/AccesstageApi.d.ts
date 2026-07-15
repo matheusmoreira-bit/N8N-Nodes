@@ -14,7 +14,13 @@ export declare class AccesstageApiClient {
         data: Buffer;
         headers: IDataObject;
     }>;
+    documentDownload(fileId: string): Promise<{
+        data: Buffer;
+        headers: IDataObject;
+    }>;
+    documentUpload(companyCode: string, body: IDataObject): Promise<IDataObject | IDataObject[]>;
     listFiles(from: string, to: string): Promise<IDataObject | IDataObject[]>;
+    listPartnership(): Promise<IDataObject | IDataObject[]>;
     listTransactions(from: string, to: string): Promise<IDataObject | IDataObject[]>;
     resubmit(fileId: string): Promise<IDataObject>;
     private request;

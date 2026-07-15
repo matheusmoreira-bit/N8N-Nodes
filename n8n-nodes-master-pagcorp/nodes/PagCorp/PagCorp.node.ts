@@ -7,6 +7,7 @@ import {
     INodeTypeDescription,
 } from 'n8n-workflow';
 
+import * as cnab from './actions/cnab';
 import * as expense from './actions/expense';
 import { router } from './actions/router';
 import { PagCorpApi } from './transport/PagCorpApi';
@@ -24,7 +25,7 @@ export class PagCorp implements INodeType {
         displayName: 'PagCorp',
         name: 'pagCorp',
         group: ['output'],
-        description: 'Consulta despesas na API PagCorp com autenticação criptografada',
+        description: 'Consulta despesas e opera arquivos CNAB na API PagCorp com autenticação criptografada',
         icon: 'file:pagcorp.png',
         version: 1,
         defaults: {
@@ -40,6 +41,10 @@ export class PagCorp implements INodeType {
                 type: 'options',
                 options: [
                     {
+                        name: 'CNAB',
+                        value: 'cnab',
+                    },
+                    {
                         name: 'Expense',
                         value: 'expense',
                     },
@@ -47,6 +52,7 @@ export class PagCorp implements INodeType {
                 default: 'expense',
                 description: 'Recurso a ser utilizado',
             },
+            ...cnab.descriptions,
             ...expense.descriptions,
         ],
     };

@@ -40,6 +40,33 @@ export class AccesstageApiClient {
 		};
 	}
 
+	public async documentDownload(fileId: string): Promise<{ data: Buffer; headers: IDataObject }> {
+		const response = await this.requestRaw<ArrayBuffer>({
+			method: 'GET',
+			url: `/document/download/${encodeURIComponent(fileId)}`,
+			responseType: 'arraybuffer',
+			headers: {
+				Accept: '*/*',
+			},
+		});
+
+		return {
+			data: Buffer.from(response.data),
+			headers: response.headers as IDataObject,
+		};
+	}
+
+	public async documentUpload(companyCode: string, body: IDataObject): Promise<IDataObject | IDataObject[]> {
+		return await this.request<IDataObject | IDataObject[]>({
+			method: 'POST',
+			url: `/document/upload/${encodeURIComponent(companyCode)}`,
+			data: body,
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		});
+	}
+
 	public async listFiles(from: string, to: string): Promise<IDataObject | IDataObject[]> {
 		return await this.request<IDataObject | IDataObject[]>({
 			method: 'GET',
@@ -47,6 +74,16 @@ export class AccesstageApiClient {
 			params: { from, to },
 			headers: {
 				'Content-Type': 'application/json',
+			},
+		});
+	}
+
+	public async listPartnership(): Promise<IDataObject | IDataObject[]> {
+		return await this.request<IDataObject | IDataObject[]>({
+			method: 'GET',
+			url: '/list/partnership',
+			headers: {
+				Accept: 'application/json',
 			},
 		});
 	}

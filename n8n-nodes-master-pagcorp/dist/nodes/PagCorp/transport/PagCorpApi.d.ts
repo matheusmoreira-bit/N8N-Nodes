@@ -1,5 +1,5 @@
 import { IDataObject, IExecuteFunctions } from 'n8n-workflow';
-import { IGetExpensesOptions, IGetExpensesResult } from './Interfaces';
+import { IDownloadCnabReturnOptions, IGetExpensesOptions, IGetExpensesResult, IListCnabReturnsOptions, IUploadCnabOptions } from './Interfaces';
 export declare class PagCorpApi {
     private readonly baseUrl;
     private readonly clientAuthBaseUrl;
@@ -20,5 +20,16 @@ export declare class PagCorpApi {
     private encryptPassword;
     private getClientToken;
     private getApiToken;
+    private requestRaw;
+    private request;
+    private normalizeEndpointPath;
+    private appendFormField;
+    private endpointWithReturnId;
+    uploadCnab(options: IUploadCnabOptions): Promise<IDataObject | string>;
+    listCnabReturns(options: IListCnabReturnsOptions): Promise<IDataObject | IDataObject[] | string>;
+    downloadCnabReturn(options: IDownloadCnabReturnOptions): Promise<{
+        data: Buffer;
+        headers: IDataObject;
+    }>;
     getExpensesByAccount(options: IGetExpensesOptions): Promise<IGetExpensesResult>;
 }
