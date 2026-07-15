@@ -79,15 +79,15 @@ class Accesstage {
                             action: 'List partnerships',
                         },
                         {
-                            name: 'List Return Files',
+                            name: 'List Downloadable Files',
                             value: 'list',
-                            description: 'List returned files available to download by date range',
-                            action: 'List return files',
+                            description: 'List files currently available to download by date range',
+                            action: 'List downloadable files',
                         },
                         {
                             name: 'List Transactions',
                             value: 'listTransactions',
-                            description: 'List remittance and return transactions by date range',
+                            description: 'List remittance and return processing history by date range',
                             action: 'List transactions',
                         },
                         {
@@ -534,7 +534,7 @@ async function downloadFile(client, fileId, downloadEndpoint) {
             if (!isDownloadNotFoundError(documentError)) {
                 throw documentError;
             }
-            throw new Error(`Arquivo nao encontrado em /download nem em /document/download para o tracking "${fileId}". Confirme se o tracking veio da listagem no mesmo ambiente da credencial (homologacao/producao). Se o tracking veio de uma listagem antiga ou como numero, reexecute a listagem com esta versao do node para preservar o ID longo como texto.`);
+            throw new Error(`Arquivo nao encontrado em /download nem em /document/download para o tracking "${fileId}". A APUS autenticou, mas informou que esse arquivo nao esta disponivel para download. Trackings vindos de List Transactions (/list/transactions) sao historico de processamento e nem sempre estao em storage para baixar; para download, use List Downloadable Files (/list/files) ou rode Resubmit File para solicitar a disponibilizacao do tracking. Confirme tambem se a credencial esta no mesmo ambiente (homologacao/producao).`);
         }
     }
 }
