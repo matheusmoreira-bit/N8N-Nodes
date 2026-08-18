@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { IDataObject, IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 
-import { readFileBuffer, resolveBasePath } from '../helpers';
+import { isGuestAuth, readFileBuffer, resolveBasePath } from '../helpers';
 
 export async function execute(this: IExecuteFunctions, index: number): Promise<INodeExecutionData[]> {
     const credentials = await getOptionalCredentials.call(this);
@@ -23,7 +23,7 @@ export async function execute(this: IExecuteFunctions, index: number): Promise<I
             relativePath: path.relative(basePath, absolutePath),
             basePath,
             size: buffer.length,
-            networkCredentialsConfigured: Boolean(credentials?.username || credentials?.domain),
+            networkCredentialsConfigured: Boolean(isGuestAuth(credentials) || credentials?.username || credentials?.domain),
         },
         binary: {
             [binaryPropertyName]: binaryData,

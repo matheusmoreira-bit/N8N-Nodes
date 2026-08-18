@@ -1,6 +1,6 @@
 import { IDataObject, IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 
-import { filterFiles, listFiles, parseDateParameter, resolveBasePath } from '../helpers';
+import { filterFiles, isGuestAuth, listFiles, parseDateParameter, resolveBasePath } from '../helpers';
 
 export async function execute(this: IExecuteFunctions, index: number): Promise<INodeExecutionData[]> {
     const credentials = await getOptionalCredentials.call(this);
@@ -11,13 +11,19 @@ export async function execute(this: IExecuteFunctions, index: number): Promise<I
     const folderPath = this.getNodeParameter('serverFolderPath', index, '.') as string;
     const recursive = this.getNodeParameter('recursive', index, false) as boolean;
     const includeDirectories = this.getNodeParameter('includeDirectories', index, false) as boolean;
+    const includeMetadata = this.getNodeParameter('includeMetadata', index, false) as boolean;
     const createdFrom = parseDateParameter(this.getNodeParameter('createdFrom', index, '') as string);
     const createdTo = parseDateParameter(this.getNodeParameter('createdTo', index, '') as string, true);
     const fileNameContains = this.getNodeParameter('fileNameContains', index, '') as string;
     const fileNameRegex = this.getNodeParameter('fileNameRegex', index, '') as string;
     const maxItems = this.getNodeParameter('maxItems', index, 0) as number;
 
-    const files = filterFiles(await listFiles(basePath, folderPath, recursive, credentials), {
+    const includeStats = includeMetadata || Boolean(createdFrom || createdTo);
+    const canLimitWhileListing = !includeStats && !fileNameContains?.trim() && !fileNameRegex?.trim();
+    const files = filterFiles(await listFiles(basePath, folderPath, recursive, credentials, {
+        includeStats,
+        maxItems: canLimitWhileListing ? maxItems : 0,
+    }), {
         createdFrom,
         createdTo,
         fileNameContains,
@@ -25,12 +31,12 @@ export async function execute(this: IExecuteFunctions, index: number): Promise<I
         includeDirectories,
     });
 
-    const limitedFiles = maxItems > 0 ? files.slice(0, maxItems) : files;
+    const limitedFiles = maxItems > 0 && files.length > maxItems ? files.slice(0, maxItems) : files;
 
     return this.helpers.returnJsonArray(limitedFiles.map((file) => ({
         ...file,
         basePath,
-        networkCredentialsConfigured: Boolean(credentials?.username || credentials?.domain),
+        networkCredentialsConfigured: Boolean(isGuestAuth(credentials) || credentials?.username || credentials?.domain),
     })));
 }
 

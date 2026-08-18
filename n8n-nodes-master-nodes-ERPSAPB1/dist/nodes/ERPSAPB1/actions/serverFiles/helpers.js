@@ -39,12 +39,16 @@ exports.listFiles = listFiles;
 exports.filterFiles = filterFiles;
 exports.readFileBuffer = readFileBuffer;
 exports.parseDateParameter = parseDateParameter;
+exports.isGuestAuth = isGuestAuth;
 const fs_1 = require("fs");
 const path = __importStar(require("path"));
 const SMB2 = require('smb2');
+const SMB2Connection = require('smb2/lib/tools/smb2-connection');
 const SMB2Forge = require('smb2/lib/tools/smb2-forge');
 const SMB2Request = SMB2Forge.request;
 const SMB_DIRECTORY_ATTRIBUTE = 0x10;
+const SMB_REPARSE_POINT_ATTRIBUTE = 0x400;
+const DEFAULT_SMB_TIMEOUT_MS = 30000;
 function resolveBasePath(nodeBasePath, credentialBasePath) {
     const basePath = (nodeBasePath === null || nodeBasePath === void 0 ? void 0 : nodeBasePath.trim()) || (credentialBasePath === null || credentialBasePath === void 0 ? void 0 : credentialBasePath.trim());
     if (!basePath) {
@@ -68,7 +72,7 @@ function resolveTargetPath(basePath, targetPath) {
     }
     return path.resolve(basePath, rawTargetPath);
 }
-async function listFiles(basePath, targetPath, recursive, credentials) {
+async function listFiles(basePath, targetPath, recursive, credentials, options = {}) {
     const rootPath = resolveTargetPath(basePath, targetPath);
     if (isUncPath(rootPath)) {
         return await listSmbFiles(basePath, rootPath, recursive, credentials);
@@ -77,7 +81,7 @@ async function listFiles(basePath, targetPath, recursive, credentials) {
     if (!rootStats.isDirectory()) {
         return [toLocalFileInfo(rootPath, basePath, rootStats)];
     }
-    return await listLocalDirectory(rootPath, basePath, recursive);
+    return await listLocalDirectory(rootPath, basePath, recursive, options);
 }
 function filterFiles(files, filters) {
     var _a, _b;
@@ -135,16 +139,23 @@ function parseDateParameter(value, endOfDay = false) {
     }
     return date;
 }
-async function listLocalDirectory(directoryPath, basePath, recursive) {
+function isGuestAuth(credentials) {
+    return String((credentials === null || credentials === void 0 ? void 0 : credentials.authMode) || '').toLowerCase() === 'guest';
+}
+async function listLocalDirectory(directoryPath, basePath, recursive, options, results = []) {
     const entries = await fs_1.promises.readdir(directoryPath, { withFileTypes: true });
-    const results = [];
+    const maxItems = Number(options.maxItems || 0);
     for (const entry of entries) {
+        if (maxItems > 0 && results.length >= maxItems) {
+            break;
+        }
         const absolutePath = path.join(directoryPath, entry.name);
-        const stats = await safeStat(absolutePath);
-        const info = toLocalFileInfo(absolutePath, basePath, stats);
+        const info = options.includeStats
+            ? toLocalFileInfo(absolutePath, basePath, await safeStat(absolutePath))
+            : toLocalFileInfoFromDirent(absolutePath, basePath, entry);
         results.push(info);
-        if (recursive && entry.isDirectory()) {
-            results.push(...await listLocalDirectory(absolutePath, basePath, true));
+        if (recursive && entry.isDirectory() && !(maxItems > 0 && results.length >= maxItems)) {
+            await listLocalDirectory(absolutePath, basePath, true, options, results);
         }
     }
     return results;
@@ -152,9 +163,10 @@ async function listLocalDirectory(directoryPath, basePath, recursive) {
 async function listSmbFiles(basePath, rootPath, recursive, credentials) {
     const parsedRoot = parseUncPath(rootPath);
     const parsedBase = isUncPath(basePath) ? parseUncPath(basePath) : parsedRoot;
-    const client = createSmbClient(parsedRoot, credentials);
+    const timeoutMs = resolveSmbTimeoutMs(credentials);
+    const client = createSmbClient(parsedRoot, credentials, timeoutMs);
     try {
-        return await listSmbDirectory(client, parsedRoot, parsedBase.fullPath, parsedRoot.relativePath, recursive);
+        return await withTimeout(listSmbDirectory(client, parsedRoot, parsedBase.fullPath, parsedRoot.relativePath, recursive), timeoutMs, `Tempo limite de ${formatDuration(timeoutMs)} excedido ao listar '${rootPath}'. Verifique autenticação SMB, permissão na pasta e evite "Recursivo" em árvores grandes.`);
     }
     catch (error) {
         throw new Error(`Não foi possível acessar o caminho SMB '${rootPath}': ${formatError(error)}`);
@@ -174,7 +186,7 @@ async function listSmbDirectory(client, parsedShare, basePath, directoryPath, re
         const absolutePath = buildUncPath(parsedShare.share, childRelativePath);
         const info = toSmbFileInfo(entry, absolutePath, basePath, childRelativePath);
         results.push(info);
-        if (recursive && info.type === 'directory') {
+        if (recursive && info.type === 'directory' && !isSmbReparsePoint(entry)) {
             results.push(...await listSmbDirectory(client, parsedShare, basePath, childRelativePath, true));
         }
     }
@@ -182,9 +194,10 @@ async function listSmbDirectory(client, parsedShare, basePath, directoryPath, re
 }
 async function readSmbFile(absolutePath, credentials) {
     const parsedPath = parseUncPath(absolutePath);
-    const client = createSmbClient(parsedPath, credentials);
+    const timeoutMs = resolveSmbTimeoutMs(credentials);
+    const client = createSmbClient(parsedPath, credentials, timeoutMs);
     try {
-        const buffer = await new Promise((resolve, reject) => {
+        const buffer = await withTimeout(new Promise((resolve, reject) => {
             client.readFile(parsedPath.relativePath, (error, data) => {
                 if (error) {
                     reject(error);
@@ -192,7 +205,7 @@ async function readSmbFile(absolutePath, credentials) {
                 }
                 resolve(Buffer.isBuffer(data) ? data : Buffer.from(data));
             });
-        });
+        }), timeoutMs, `Tempo limite de ${formatDuration(timeoutMs)} excedido ao baixar '${absolutePath}'. Verifique autenticação SMB e permissão no arquivo.`);
         return { absolutePath: parsedPath.fullPath, buffer };
     }
     catch (error) {
@@ -202,39 +215,76 @@ async function readSmbFile(absolutePath, credentials) {
         closeSmbClient(client);
     }
 }
-function createSmbClient(parsedPath, credentials) {
-    return new SMB2({
+function createSmbClient(parsedPath, credentials, timeoutMs = DEFAULT_SMB_TIMEOUT_MS) {
+    var _a, _b;
+    const auth = resolveSmbAuth(credentials);
+    const client = new SMB2({
         share: parsedPath.share,
-        domain: (credentials === null || credentials === void 0 ? void 0 : credentials.domain) || '',
-        username: (credentials === null || credentials === void 0 ? void 0 : credentials.username) || '',
-        password: (credentials === null || credentials === void 0 ? void 0 : credentials.password) || '',
+        domain: auth.domain,
+        username: auth.username,
+        password: auth.password,
         autoCloseTimeout: 0,
     });
+    (_b = (_a = client.socket) === null || _a === void 0 ? void 0 : _a.setTimeout) === null || _b === void 0 ? void 0 : _b.call(_a, timeoutMs, () => {
+        var _a, _b;
+        (_b = (_a = client.socket) === null || _a === void 0 ? void 0 : _a.destroy) === null || _b === void 0 ? void 0 : _b.call(_a, new Error(`Tempo limite SMB de ${formatDuration(timeoutMs)} excedido.`));
+    });
+    return client;
+}
+function resolveSmbAuth(credentials) {
+    if (isGuestAuth(credentials)) {
+        return {
+            domain: '',
+            username: 'guest',
+            password: '',
+        };
+    }
+    return {
+        domain: String((credentials === null || credentials === void 0 ? void 0 : credentials.domain) || ''),
+        username: String((credentials === null || credentials === void 0 ? void 0 : credentials.username) || ''),
+        password: String((credentials === null || credentials === void 0 ? void 0 : credentials.password) || ''),
+    };
 }
 function closeSmbClient(client) {
-    var _a;
+    var _a, _b, _c;
     try {
         (_a = client.close) === null || _a === void 0 ? void 0 : _a.call(client);
     }
     catch {
         // Best effort close; the SMB library also auto-closes sockets.
     }
+    try {
+        (_c = (_b = client.socket) === null || _b === void 0 ? void 0 : _b.destroy) === null || _c === void 0 ? void 0 : _c.call(_b);
+    }
+    catch {
+        // Best effort close; the socket may already be closed.
+    }
 }
 function smbReaddirDetailed(client, directoryPath) {
-    return new Promise((resolve, reject) => {
-        SMB2Request('open_folder', { path: directoryPath }, client, (openError, file) => {
+    const readDirectory = SMB2Connection.requireConnect((targetPath, callback) => {
+        SMB2Request('open_folder', { path: targetPath }, client, (openError, file) => {
             if (openError) {
-                reject(openError);
+                callback(openError);
                 return;
             }
             querySmbDirectory(client, file, [], (queryError, files) => {
-                SMB2Request('close', file, client, () => undefined);
-                if (queryError) {
-                    reject(queryError);
-                    return;
-                }
-                resolve(files);
+                SMB2Request('close', file, client, () => {
+                    if (queryError) {
+                        callback(queryError);
+                        return;
+                    }
+                    callback(null, files);
+                });
             });
+        });
+    });
+    return new Promise((resolve, reject) => {
+        readDirectory.call(client, directoryPath, (error, files = []) => {
+            if (error) {
+                reject(error);
+                return;
+            }
+            resolve(files);
         });
     });
 }
@@ -282,6 +332,17 @@ function toLocalFileInfo(absolutePath, basePath, stats) {
         mtimeMs: Number(stats.mtimeMs),
     };
 }
+function toLocalFileInfoFromDirent(absolutePath, basePath, entry) {
+    const type = entry.isDirectory() ? 'directory' : 'file';
+    return {
+        name: entry.name,
+        path: absolutePath,
+        relativePath: path.relative(basePath, absolutePath) || entry.name,
+        type,
+        extension: type === 'file' ? path.extname(entry.name).replace(/^\./, '') : '',
+        size: 0,
+    };
+}
 function toSmbFileInfo(entry, absolutePath, basePath, relativePathFromShare) {
     const createdAtMs = fileTimeBufferToMs(entry.CreationTime);
     const modifiedAtMs = fileTimeBufferToMs(entry.LastWriteTime);
@@ -302,12 +363,18 @@ function toSmbFileInfo(entry, absolutePath, basePath, relativePathFromShare) {
         mtimeMs: modifiedAtMs,
     };
 }
+function isSmbReparsePoint(entry) {
+    return (entry.FileAttributes & SMB_REPARSE_POINT_ATTRIBUTE) === SMB_REPARSE_POINT_ATTRIBUTE;
+}
 function isUncPath(value) {
     const trimmed = value.trim();
-    return trimmed.startsWith('\\\\') || trimmed.startsWith('//');
+    return trimmed.startsWith('\\\\') || trimmed.startsWith('//') || /^smb:[/\\]+/i.test(trimmed);
 }
 function normalizeUncPath(value) {
-    const normalized = value.trim().replace(/\//g, '\\').replace(/\\+/g, '\\');
+    const trimmed = value.trim();
+    const smbPath = trimmed.match(/^smb:[/\\]+(.+)$/i);
+    const rawPath = smbPath ? `\\\\${smbPath[1]}` : trimmed;
+    const normalized = rawPath.replace(/\//g, '\\').replace(/\\+/g, '\\');
     return normalized.startsWith('\\\\') ? normalized : `\\${normalized}`;
 }
 function parseUncPath(value) {
@@ -363,12 +430,46 @@ function bufferToBigInt(buffer) {
     }
     return value;
 }
+async function withTimeout(promise, timeoutMs, message) {
+    let timeout;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+    });
+    try {
+        return await Promise.race([promise, timeoutPromise]);
+    }
+    finally {
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+    }
+}
+function resolveSmbTimeoutMs(credentials) {
+    const rawTimeoutSeconds = credentials === null || credentials === void 0 ? void 0 : credentials.timeoutSeconds;
+    const timeoutSeconds = typeof rawTimeoutSeconds === 'number'
+        ? rawTimeoutSeconds
+        : Number(rawTimeoutSeconds);
+    if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
+        return DEFAULT_SMB_TIMEOUT_MS;
+    }
+    return Math.max(1000, Math.round(timeoutSeconds * 1000));
+}
+function formatDuration(timeoutMs) {
+    return `${Math.round(timeoutMs / 1000)}s`;
+}
 function formatError(error) {
     if (error instanceof Error) {
         return error.message;
     }
-    if (typeof error === 'object' && error !== null && 'message' in error) {
-        return String(error.message);
+    if (typeof error === 'object' && error !== null) {
+        const message = 'message' in error ? String(error.message) : '';
+        const code = 'code' in error ? String(error.code) : '';
+        if (message && code && !message.includes(code)) {
+            return `${message} (${code})`;
+        }
+        if (message) {
+            return message;
+        }
     }
     return String(error);
 }

@@ -71,13 +71,13 @@ exports.descriptions = [
         name: 'serverBasePath',
         type: 'string',
         default: '',
-        placeholder: '/mnt/sap-files',
+        placeholder: '\\\\servidor\\share ou smb://servidor/share',
         displayOptions: {
             show: {
                 resource: ['serverFiles'],
             },
         },
-        description: 'Pasta base local/montada. Se vazio, usa o Caminho Base da credencial opcional SAP B1 Server Files.',
+        description: 'Pasta base local/montada ou compartilhamento SMB. Se vazio, usa o Caminho Base da credencial opcional SAP B1 Server Files.',
     },
     {
         displayName: 'Pasta',
@@ -91,7 +91,7 @@ exports.descriptions = [
                 operation: ['list'],
             },
         },
-        description: 'Pasta a listar. Pode ser relativa ao Caminho Base ou absoluta.',
+        description: 'Pasta a listar. Pode ser relativa ao Caminho Base, UNC ou smb://servidor/share/pasta.',
     },
     {
         displayName: 'Arquivo',
@@ -106,7 +106,7 @@ exports.descriptions = [
                 operation: ['download'],
             },
         },
-        description: 'Arquivo a baixar. Pode ser relativo ao Caminho Base ou absoluto.',
+        description: 'Arquivo a baixar. Pode ser relativo ao Caminho Base, UNC ou smb://servidor/share/arquivo.',
     },
     {
         displayName: 'Recursivo',
@@ -133,6 +133,19 @@ exports.descriptions = [
             },
         },
         description: 'Se ativo, retorna diretórios junto com arquivos.',
+    },
+    {
+        displayName: 'Incluir Metadados',
+        name: 'includeMetadata',
+        type: 'boolean',
+        default: false,
+        displayOptions: {
+            show: {
+                resource: ['serverFiles'],
+                operation: ['list'],
+            },
+        },
+        description: 'Se ativo, busca tamanho e datas dos arquivos. Em pastas de rede, pode deixar a listagem mais lenta.',
     },
     {
         displayName: 'Criado A Partir De',

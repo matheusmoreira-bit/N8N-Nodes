@@ -13,8 +13,10 @@ services:
       - N8N_RUNNERS_ENABLED=true
       - N8N_SECURE_COOKIE=false
       - N8N_CUSTOM_EXTENSIONS=/opt/n8n-custom
+      - NODE_OPTIONS=--openssl-legacy-provider
     volumes:
       - n8n_data:/home/node/.n8n
+      - ${B1_SHF_PATH:-./.docker/b1_shf}:/mnt/b1_shf:ro
     restart: unless-stopped
 
 volumes:

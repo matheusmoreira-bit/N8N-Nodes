@@ -19,18 +19,25 @@ export interface FileFilters {
     fileNameRegex?: string;
     includeDirectories?: boolean;
 }
+export interface ListFilesOptions {
+    includeStats?: boolean;
+    maxItems?: number;
+}
 export interface ServerFilesCredentialData extends IDataObject {
+    authMode?: string;
     username?: string;
     password?: string;
     domain?: string;
     basePath?: string;
+    timeoutSeconds?: number | string;
 }
 export declare function resolveBasePath(nodeBasePath: string, credentialBasePath?: string): string;
 export declare function resolveTargetPath(basePath: string, targetPath: string): string;
-export declare function listFiles(basePath: string, targetPath: string, recursive: boolean, credentials?: ServerFilesCredentialData): Promise<ServerFileInfo[]>;
+export declare function listFiles(basePath: string, targetPath: string, recursive: boolean, credentials?: ServerFilesCredentialData, options?: ListFilesOptions): Promise<ServerFileInfo[]>;
 export declare function filterFiles(files: ServerFileInfo[], filters: FileFilters): ServerFileInfo[];
 export declare function readFileBuffer(basePath: string, filePath: string, credentials?: ServerFilesCredentialData): Promise<{
     absolutePath: string;
     buffer: Buffer;
 }>;
 export declare function parseDateParameter(value: string, endOfDay?: boolean): Date | undefined;
+export declare function isGuestAuth(credentials?: ServerFilesCredentialData | IDataObject): boolean;

@@ -51,7 +51,7 @@ async function execute(index) {
                 relativePath: path.relative(basePath, absolutePath),
                 basePath,
                 size: buffer.length,
-                networkCredentialsConfigured: Boolean((credentials === null || credentials === void 0 ? void 0 : credentials.username) || (credentials === null || credentials === void 0 ? void 0 : credentials.domain)),
+                networkCredentialsConfigured: Boolean((0, helpers_1.isGuestAuth)(credentials) || (credentials === null || credentials === void 0 ? void 0 : credentials.username) || (credentials === null || credentials === void 0 ? void 0 : credentials.domain)),
             },
             binary: {
                 [binaryPropertyName]: binaryData,
