@@ -1,0 +1,514 @@
+import { IDataObject } from 'n8n-workflow';
+
+export interface Cnab240SicoobCompanyData {
+    convenio: string;
+    tipoInscricao: string;
+    numeroInscricao: string;
+    agencia: string;
+    conta: string;
+    contaDv: string;
+    nome: string;
+    endereco: string;
+    numeroEndereco: string;
+    complemento: string;
+    cidade: string;
+    cep: string;
+    uf: string;
+}
+
+export interface Cnab240SicoobPaymentData {
+    codigoBarras?: string;
+    tipoPagamento?: string;
+    tipoChavePix?: string;
+    chavePix?: string;
+    txIdPix?: string;
+    codigoBancoFavorecido: string;
+    agenciaFavorecido: string;
+    agenciaDvFavorecido: string;
+    contaFavorecido: string;
+    contaDvFavorecido: string;
+    nomeFavorecido: string;
+    tipoInscricaoFavorecido: string;
+    numeroInscricaoFavorecido: string;
+    nomePagador?: string;
+    tipoInscricaoPagador?: string;
+    numeroInscricaoPagador?: string;
+    logradouroFavorecido: string;
+    numeroEnderecoFavorecido: string;
+    complementoFavorecido: string;
+    bairroFavorecido: string;
+    cidadeFavorecido: string;
+    cepFavorecido: string;
+    ufFavorecido: string;
+    dataPagamento: string;
+    dataVencimento: string;
+    valor: number;
+    numeroDocumento: string;
+    seuNumero: string;
+}
+
+export interface Cnab240SicoobOptions {
+    company: Cnab240SicoobCompanyData;
+    payments: Cnab240SicoobPaymentData[];
+    fileSequence: number;
+    generationDate: Date;
+}
+
+const BANCO_SICOOB = '756';
+const TIPO_SERVICO_PAGAMENTO_FORNECEDOR = '20';
+const FORMA_LANCAMENTO_TED = '41';
+const FORMA_LANCAMENTO_PIX = '45';
+const LAYOUT_LOTE_PAGAMENTO_FORNECEDOR = '045';
+const LAYOUT_LOTE_PIX = '046';
+const CAMARA_TED = '018';
+const CAMARA_PIX = '009';
+const BANCO_FAVORECIDO_PIX_CHAVE = '000';
+const TIPO_CHAVE_TELEFONE = '001';
+const TIPO_CHAVE_EMAIL = '002';
+const TIPO_CHAVE_CPF_CNPJ = '003';
+const TIPO_CHAVE_ALEATORIA = '004';
+
+type BatchKind = 'standard' | 'pix';
+
+function onlyDigits(value: unknown): string {
+    return `${value ?? ''}`.replace(/\D/g, '');
+}
+
+function stripAccents(value: string): string {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function alpha(value: unknown, length: number): string {
+    const normalized = stripAccents(`${value ?? ''}`)
+        .toUpperCase()
+        .replace(/[^A-Z0-9 .,&\-/]/g, ' ')
+        .slice(0, length);
+
+    return normalized.padEnd(length, ' ');
+}
+
+function alphaPreserveCase(value: unknown, length: number): string {
+    return `${value ?? ''}`
+        .trim()
+        .replace(/[\r\n]/g, ' ')
+        .slice(0, length)
+        .padEnd(length, ' ');
+}
+
+function numeric(value: unknown, length: number): string {
+    return onlyDigits(value).slice(-length).padStart(length, '0');
+}
+
+function amount(value: number, length = 15): string {
+    const cents = Math.round((Number(value) || 0) * 100);
+    return `${cents}`.padStart(length, '0').slice(-length);
+}
+
+function date(value: unknown): string {
+    if (!value) {
+        return '00000000';
+    }
+
+    const textValue = `${value}`.trim();
+    const brazilianDateMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(textValue);
+    if (brazilianDateMatch) {
+        const [, day, month, year] = brazilianDateMatch;
+        return `${day}${month}${year}`;
+    }
+
+    const parsedDate = new Date(textValue);
+    if (Number.isNaN(parsedDate.getTime())) {
+        return numeric(textValue, 8);
+    }
+
+    const day = `${parsedDate.getDate()}`.padStart(2, '0');
+    const month = `${parsedDate.getMonth() + 1}`.padStart(2, '0');
+    const year = `${parsedDate.getFullYear()}`;
+    return `${day}${month}${year}`;
+}
+
+function time(value: Date): string {
+    return `${value.getHours()}`.padStart(2, '0')
+        + `${value.getMinutes()}`.padStart(2, '0')
+        + `${value.getSeconds()}`.padStart(2, '0');
+}
+
+function buildLine(parts: Array<string>): string {
+    const line = parts.join('');
+    if (line.length !== 240) {
+        throw new Error(`Registro CNAB 240 inválido: esperado 240 posições, recebido ${line.length}.`);
+    }
+    return line;
+}
+
+function accountWithDv(account: string, dv: string): string {
+    return `${numeric(account, 12)}${alpha(dv, 1)}`;
+}
+
+function buildFileHeader(company: Cnab240SicoobCompanyData, generationDate: Date, fileSequence: number): string {
+    return buildLine([
+        BANCO_SICOOB,
+        '0000',
+        '0',
+        alpha('', 9),
+        numeric(company.tipoInscricao, 1),
+        numeric(company.numeroInscricao, 14),
+        alpha(company.convenio, 20),
+        numeric(company.agencia, 5),
+        alpha('', 1),
+        accountWithDv(company.conta, company.contaDv),
+        alpha('', 1),
+        alpha(company.nome, 30),
+        alpha('SICOOB', 30),
+        alpha('', 10),
+        '1',
+        date(generationDate.toISOString()),
+        time(generationDate),
+        numeric(fileSequence, 6),
+        '087',
+        '01600',
+        alpha('', 69),
+    ]);
+}
+
+function isPixPayment(payment: Cnab240SicoobPaymentData): boolean {
+    return `${payment.tipoPagamento ?? ''}`.trim().toUpperCase() === 'PIX'
+        || Boolean(`${payment.tipoChavePix ?? ''}`.trim())
+        || Boolean(`${payment.chavePix ?? ''}`.trim());
+}
+
+function getBatchKind(payment: Cnab240SicoobPaymentData): BatchKind {
+    if (!payment.codigoBarras && isPixPayment(payment)) {
+        return 'pix';
+    }
+
+    return 'standard';
+}
+
+function buildBatchHeader(company: Cnab240SicoobCompanyData, batchNumber: number, kind: BatchKind): string {
+    const isPixBatch = kind === 'pix';
+
+    return buildLine([
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
+        '1',
+        'C',
+        TIPO_SERVICO_PAGAMENTO_FORNECEDOR,
+        isPixBatch ? FORMA_LANCAMENTO_PIX : FORMA_LANCAMENTO_TED,
+        isPixBatch ? LAYOUT_LOTE_PIX : LAYOUT_LOTE_PAGAMENTO_FORNECEDOR,
+        alpha('', 1),
+        numeric(company.tipoInscricao, 1),
+        numeric(company.numeroInscricao, 14),
+        alpha(company.convenio, 20),
+        numeric(company.agencia, 5),
+        alpha('', 1),
+        accountWithDv(company.conta, company.contaDv),
+        alpha('', 1),
+        alpha(company.nome, 30),
+        alpha('', 40),
+        alpha(company.endereco, 30),
+        alpha(company.numeroEndereco, 5),
+        alpha(company.complemento, 15),
+        alpha(company.cidade, 20),
+        numeric(company.cep, 8),
+        alpha(company.uf, 2),
+        alpha('', 8),
+        alpha('', 10),
+    ]);
+}
+
+function buildSegmentA(payment: Cnab240SicoobPaymentData, batchNumber: number, sequence: number): string {
+    const isPix = isPixPayment(payment);
+
+    return buildLine([
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
+        '3',
+        numeric(sequence, 5),
+        'A',
+        '000',
+        isPix ? CAMARA_PIX : CAMARA_TED,
+        isPix ? BANCO_FAVORECIDO_PIX_CHAVE : numeric(payment.codigoBancoFavorecido, 3),
+        isPix ? numeric(0, 5) : numeric(payment.agenciaFavorecido, 5),
+        isPix ? alpha('', 1) : alpha(payment.agenciaDvFavorecido, 1),
+        isPix ? accountWithDv('', '0') : accountWithDv(payment.contaFavorecido, payment.contaDvFavorecido),
+        alpha('', 1),
+        alpha(payment.nomeFavorecido, 30),
+        alpha(payment.seuNumero, 20),
+        date(payment.dataPagamento),
+        'BRL',
+        numeric(0, 15),
+        amount(payment.valor),
+        alpha(payment.numeroDocumento, 20),
+        numeric(0, 8),
+        amount(0),
+        alpha('', 40),
+        alpha('', 2),
+        numeric(0, 5),
+        alpha('', 5),
+        numeric(0, 1),
+        alpha('', 10),
+    ]);
+}
+
+function isUuidV4(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+function inferTipoChavePix(chavePix: unknown): string {
+    const chave = `${chavePix ?? ''}`.trim();
+    const digits = onlyDigits(chave);
+
+    if (isUuidV4(chave)) {
+        return TIPO_CHAVE_ALEATORIA;
+    }
+
+    if (chave.includes('@')) {
+        return TIPO_CHAVE_EMAIL;
+    }
+
+    if (/^\+?\d{12,13}$/.test(chave) || /^\d{12,13}$/.test(digits)) {
+        return TIPO_CHAVE_TELEFONE;
+    }
+
+    if (digits.length === 11 || digits.length === 14) {
+        return TIPO_CHAVE_CPF_CNPJ;
+    }
+
+    throw new Error(`Tipo de chave PIX não identificado: ${chave}`);
+}
+
+function normalizeTipoChavePix(value: string | undefined, chavePix?: unknown): string {
+    const normalized = `${value ?? ''}`.trim().toUpperCase();
+    if (!normalized) {
+        return inferTipoChavePix(chavePix);
+    }
+
+    if (['1', '01', '001', 'TELEFONE', 'PHONE'].includes(normalized)) {
+        return TIPO_CHAVE_TELEFONE;
+    }
+    if (['2', '02', '002', 'EMAIL', 'E-MAIL'].includes(normalized)) {
+        return TIPO_CHAVE_EMAIL;
+    }
+    if (['3', '03', '003', 'CPF', 'CNPJ', 'CPF_CNPJ', 'CPF/CNPJ'].includes(normalized)) {
+        return TIPO_CHAVE_CPF_CNPJ;
+    }
+    if (['4', '04', '004', 'EVP', 'ALEATORIA', 'ALEATÓRIA', 'RANDOM'].includes(normalized)) {
+        return TIPO_CHAVE_ALEATORIA;
+    }
+
+    return inferTipoChavePix(chavePix);
+}
+
+function normalizePixKey(payment: Cnab240SicoobPaymentData): string {
+    const tipoChavePix = normalizeTipoChavePix(payment.tipoChavePix, payment.chavePix || payment.numeroInscricaoFavorecido);
+    const rawKey = `${payment.chavePix || payment.numeroInscricaoFavorecido || ''}`.trim();
+
+    if (tipoChavePix === TIPO_CHAVE_CPF_CNPJ || tipoChavePix === TIPO_CHAVE_TELEFONE) {
+        return onlyDigits(rawKey);
+    }
+
+    return rawKey;
+}
+
+function buildSegmentB(payment: Cnab240SicoobPaymentData, batchNumber: number, sequence: number): string {
+    if (isPixPayment(payment)) {
+        const tipoChavePix = normalizeTipoChavePix(payment.tipoChavePix, payment.chavePix || payment.numeroInscricaoFavorecido);
+        const chavePix = normalizePixKey(payment);
+
+        return buildLine([
+            BANCO_SICOOB,
+            numeric(batchNumber, 4),
+            '3',
+            numeric(sequence, 5),
+            'B',
+            numeric(tipoChavePix, 3),
+            numeric(payment.tipoInscricaoFavorecido, 1),
+            numeric(payment.numeroInscricaoFavorecido, 14),
+            alpha('', 35),
+            alpha('', 60),
+            alphaPreserveCase(chavePix, 99),
+            alpha('', 6),
+            alpha('', 8),
+        ]);
+    }
+
+    return buildLine([
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
+        '3',
+        numeric(sequence, 5),
+        'B',
+        alpha('', 3),
+        numeric(payment.tipoInscricaoFavorecido, 1),
+        numeric(payment.numeroInscricaoFavorecido, 14),
+        alpha(payment.logradouroFavorecido, 30),
+        alpha(payment.numeroEnderecoFavorecido, 5),
+        alpha(payment.complementoFavorecido, 15),
+        alpha(payment.bairroFavorecido, 15),
+        alpha(payment.cidadeFavorecido, 20),
+        numeric(payment.cepFavorecido, 8),
+        alpha(payment.ufFavorecido, 2),
+        date(payment.dataVencimento || payment.dataPagamento),
+        amount(payment.valor),
+        amount(0),
+        amount(0),
+        amount(0),
+        amount(0),
+        alpha(payment.numeroDocumento, 15),
+        alpha('', 15),
+    ]);
+}
+
+function buildSegmentJ(payment: Cnab240SicoobPaymentData, batchNumber: number, sequence: number): string {
+    return buildLine([
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
+        '3',
+        numeric(sequence, 5),
+        'J',
+        '000',
+        numeric(payment.codigoBarras, 44),
+        alpha(payment.nomeFavorecido, 30),
+        date(payment.dataVencimento || payment.dataPagamento),
+        amount(payment.valor),
+        amount(0),
+        amount(0),
+        date(payment.dataPagamento),
+        amount(payment.valor),
+        numeric(0, 15),
+        alpha(payment.seuNumero, 20),
+        alpha('', 20),
+        '09',
+        alpha('', 6),
+        alpha('', 10),
+    ]);
+}
+
+function buildSegmentJ52(
+    payment: Cnab240SicoobPaymentData,
+    company: Cnab240SicoobCompanyData,
+    batchNumber: number,
+    sequence: number,
+): string {
+    const tipoInscricaoPagador = payment.tipoInscricaoPagador || company.tipoInscricao;
+    const numeroInscricaoPagador = payment.numeroInscricaoPagador || company.numeroInscricao;
+    const nomePagador = payment.nomePagador || company.nome;
+
+    return buildLine([
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
+        '3',
+        numeric(sequence, 5),
+        'J',
+        '000',
+        '52',
+        numeric(tipoInscricaoPagador, 1),
+        numeric(numeroInscricaoPagador, 15),
+        alpha(nomePagador, 40),
+        numeric(payment.tipoInscricaoFavorecido, 1),
+        numeric(payment.numeroInscricaoFavorecido, 15),
+        alpha(payment.nomeFavorecido, 40),
+        numeric(0, 1),
+        numeric(0, 15),
+        alpha('', 40),
+        alpha('', 53),
+    ]);
+}
+
+function getRecordCount(payments: Cnab240SicoobPaymentData[]): number {
+    return payments.length * 2;
+}
+
+function buildBatchTrailer(payments: Cnab240SicoobPaymentData[], batchNumber: number): string {
+    const recordCount = getRecordCount(payments) + 2;
+    const totalAmount = payments.reduce((total, payment) => total + (Number(payment.valor) || 0), 0);
+
+    return buildLine([
+        BANCO_SICOOB,
+        numeric(batchNumber, 4),
+        '5',
+        alpha('', 9),
+        numeric(recordCount, 6),
+        amount(totalAmount, 18),
+        numeric(0, 18),
+        numeric(0, 6),
+        alpha('', 175),
+    ]);
+}
+
+function buildFileTrailer(batchCount: number, recordCount: number): string {
+    return buildLine([
+        BANCO_SICOOB,
+        '9999',
+        '9',
+        alpha('', 9),
+        numeric(batchCount, 6),
+        numeric(recordCount, 6),
+        numeric(0, 6),
+        alpha('', 205),
+    ]);
+}
+
+function groupPaymentsByBatchKind(payments: Cnab240SicoobPaymentData[]): Array<{ kind: BatchKind; payments: Cnab240SicoobPaymentData[] }> {
+    return payments.reduce<Array<{ kind: BatchKind; payments: Cnab240SicoobPaymentData[] }>>((batches, payment) => {
+        const kind = getBatchKind(payment);
+        const existingBatch = batches.find((batch) => batch.kind === kind);
+
+        if (existingBatch) {
+            existingBatch.payments.push(payment);
+        } else {
+            batches.push({ kind, payments: [payment] });
+        }
+
+        return batches;
+    }, []);
+}
+
+export function buildCnab240SicoobPaymentRemittance(options: Cnab240SicoobOptions): string {
+    if (options.payments.length === 0) {
+        throw new Error('Nenhum pagamento informado para gerar a remessa CNAB 240 Sicoob.');
+    }
+
+    const batches = groupPaymentsByBatchKind(options.payments);
+    const lines: string[] = [
+        buildFileHeader(options.company, options.generationDate, options.fileSequence),
+    ];
+
+    for (const [batchIndex, batch] of batches.entries()) {
+        const batchNumber = batchIndex + 1;
+        lines.push(buildBatchHeader(options.company, batchNumber, batch.kind));
+
+        let sequence = 1;
+        for (const payment of batch.payments) {
+            if (payment.codigoBarras) {
+                lines.push(buildSegmentJ(payment, batchNumber, sequence));
+                lines.push(buildSegmentJ52(payment, options.company, batchNumber, sequence + 1));
+                sequence += 2;
+            } else {
+                lines.push(buildSegmentA(payment, batchNumber, sequence));
+                lines.push(buildSegmentB(payment, batchNumber, sequence + 1));
+                sequence += 2;
+            }
+        }
+
+        lines.push(buildBatchTrailer(batch.payments, batchNumber));
+    }
+
+    lines.push(buildFileTrailer(batches.length, lines.length + 1));
+
+    return lines.join('\r\n');
+}
+
+export function getJsonValue(item: IDataObject, path: string, fallback: unknown = ''): unknown {
+    if (!path) {
+        return fallback;
+    }
+
+    return path.split('.').reduce<unknown>((value, key) => {
+        if (value && typeof value === 'object' && key in value) {
+            return (value as IDataObject)[key];
+        }
+        return undefined;
+    }, item) ?? fallback;
+}

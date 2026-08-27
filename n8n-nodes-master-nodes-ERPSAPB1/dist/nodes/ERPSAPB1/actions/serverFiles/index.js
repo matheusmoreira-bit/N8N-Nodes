@@ -75,6 +75,7 @@ exports.descriptions = [
         displayOptions: {
             show: {
                 resource: ['serverFiles'],
+                operation: ['list'],
             },
         },
         description: 'Pasta base local/montada ou compartilhamento SMB. Se vazio, usa o Caminho Base da credencial opcional SAP B1 Server Files.',
@@ -94,11 +95,11 @@ exports.descriptions = [
         description: 'Pasta a listar. Pode ser relativa ao Caminho Base, UNC ou smb://servidor/share/pasta.',
     },
     {
-        displayName: 'Arquivo',
+        displayName: 'Caminho do Arquivo',
         name: 'serverFilePath',
         type: 'string',
         default: '',
-        placeholder: 'entrada/notas/arquivo.xml',
+        placeholder: '={{ $json.path }}',
         required: true,
         displayOptions: {
             show: {
@@ -106,7 +107,7 @@ exports.descriptions = [
                 operation: ['download'],
             },
         },
-        description: 'Arquivo a baixar. Pode ser relativo ao Caminho Base, UNC ou smb://servidor/share/arquivo.',
+        description: 'Caminho completo do arquivo a baixar. Também aceita caminho relativo quando a credencial possuir Caminho Base.',
     },
     {
         displayName: 'Recursivo',

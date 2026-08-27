@@ -1,6 +1,7 @@
 import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 
 import * as attachments from './attachments';
+import * as cnabSicoob from './cnabSicoob';
 import * as general from './general';
 import * as debug from './debug';
 import * as inclusion from './inclusion';
@@ -27,6 +28,11 @@ export async function router(this: IExecuteFunctions, api: ERPSAPB1Api): Promise
         try {
             if (erpsapb1.resource === 'attachments') {
                 operationResult.push(...await attachments[erpsapb1.operation].execute.call(this, api, i));
+            } else if (erpsapb1.resource === 'cnabSicoob') {
+                if (erpsapb1.operation === 'generatePaymentRemittance') {
+                    return cnabSicoob.generatePaymentRemittanceExecute.call(this, api);
+                }
+                throw new Error(`Operação '${operation}' não suportada para CNAB 240 Sicoob.`);
             } else if (erpsapb1.resource === 'general') {
                 operationResult.push(...await general[erpsapb1.operation].execute.call(this, api, i));
             } else if (erpsapb1.resource === 'debug') {

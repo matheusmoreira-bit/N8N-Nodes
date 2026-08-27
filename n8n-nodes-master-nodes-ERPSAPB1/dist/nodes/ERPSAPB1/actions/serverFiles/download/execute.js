@@ -36,10 +36,43 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.execute = execute;
 const path = __importStar(require("path"));
 const helpers_1 = require("../helpers");
+function isUncPath(value) {
+    const trimmed = value.trim();
+    return trimmed.startsWith('\\\\') || trimmed.startsWith('//') || /^smb:[/\\]+/i.test(trimmed);
+}
+function isFullPath(value) {
+    return isUncPath(value) || path.isAbsolute(value);
+}
+function normalizeUncPath(value) {
+    const trimmed = value.trim();
+    const smbPath = trimmed.match(/^smb:[/\\]+(.+)$/i);
+    const rawPath = smbPath ? `\\\\${smbPath[1]}` : trimmed;
+    const normalized = rawPath.replace(/\//g, '\\').replace(/\\+/g, '\\');
+    return normalized.startsWith('\\\\') ? normalized : `\\${normalized}`;
+}
+function getBasePathFromFullPath(filePath) {
+    if (isUncPath(filePath)) {
+        return path.win32.dirname(normalizeUncPath(filePath));
+    }
+    return path.dirname(path.resolve(filePath));
+}
+function getRelativePath(basePath, absolutePath) {
+    if (isUncPath(basePath) || isUncPath(absolutePath)) {
+        const normalizedBase = normalizeUncPath(basePath).toLowerCase();
+        const normalizedPath = normalizeUncPath(absolutePath);
+        if (normalizedPath.toLowerCase().startsWith(normalizedBase)) {
+            return normalizedPath.slice(normalizedBase.length).replace(/^\\+/, '') || path.win32.basename(normalizedPath);
+        }
+        return path.win32.basename(normalizedPath);
+    }
+    return path.relative(basePath, absolutePath);
+}
 async function execute(index) {
     const credentials = await getOptionalCredentials.call(this);
-    const basePath = (0, helpers_1.resolveBasePath)(this.getNodeParameter('serverBasePath', index, ''), credentials === null || credentials === void 0 ? void 0 : credentials.basePath);
     const filePath = this.getNodeParameter('serverFilePath', index);
+    const basePath = isFullPath(filePath)
+        ? getBasePathFromFullPath(filePath)
+        : (0, helpers_1.resolveBasePath)(this.getNodeParameter('serverBasePath', index, ''), credentials === null || credentials === void 0 ? void 0 : credentials.basePath);
     const binaryPropertyName = this.getNodeParameter('binaryPropertyName', index, 'data');
     const { absolutePath, buffer } = await (0, helpers_1.readFileBuffer)(basePath, filePath, credentials);
     const fileName = path.basename(absolutePath);
@@ -48,7 +81,7 @@ async function execute(index) {
             json: {
                 fileName,
                 path: absolutePath,
-                relativePath: path.relative(basePath, absolutePath),
+                relativePath: getRelativePath(basePath, absolutePath),
                 basePath,
                 size: buffer.length,
                 networkCredentialsConfigured: Boolean((0, helpers_1.isGuestAuth)(credentials) || (credentials === null || credentials === void 0 ? void 0 : credentials.username) || (credentials === null || credentials === void 0 ? void 0 : credentials.domain)),

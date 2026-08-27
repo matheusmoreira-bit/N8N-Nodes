@@ -6,6 +6,7 @@ import {
 
 type ERPSAPB1Map = {
     attachments: 'list' | 'create',
+    cnabSicoob: 'generatePaymentRemittance',
     general: 'blanketAgreement' | 'dimension' | 'distribution' | 'item' | 'itemGroup' | 'costCenterType' | 'profitCenter' | 'project' | 'genericQuery',
     debug: 'getInvoice' | 'getPayment' | 'getSalesOrder',
     inclusion: 'purchaseOrder' | 'manualJournalEntry' | 'vendorPayment',
@@ -17,6 +18,7 @@ type ERPSAPB1Map = {
 export type ERPSAPB1 = AllEntities<ERPSAPB1Map>;
 
 export type ERPSAPB1Attachments = Entity<ERPSAPB1Map, 'attachments'>;
+export type ERPSAPB1CnabSicoob = Entity<ERPSAPB1Map, 'cnabSicoob'>;
 export type ERPSAPB1General = Entity<ERPSAPB1Map, 'general'>;
 export type ERPSAPB1Debug = Entity<ERPSAPB1Map, 'debug'>;
 export type ERPSAPB1Inclusion = Entity<ERPSAPB1Map, 'inclusion'>;
@@ -25,6 +27,7 @@ export type ERPSAPB1ServerFiles = Entity<ERPSAPB1Map, 'serverFiles'>;
 export type ERPSAPB1Supplier = Entity<ERPSAPB1Map, 'supplier'>;
 
 export type AttachmentsProperties = PropertiesOf<ERPSAPB1Attachments>;
+export type CnabSicoobProperties = PropertiesOf<ERPSAPB1CnabSicoob>;
 export type GeneralProperties = PropertiesOf<ERPSAPB1General>;
 export type DebugProperties = PropertiesOf<ERPSAPB1Debug>;
 export type InclusionProperties = PropertiesOf<ERPSAPB1Inclusion>;

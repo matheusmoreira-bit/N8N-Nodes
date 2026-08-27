@@ -437,6 +437,13 @@ class ERPSAPB1Api {
             },
         });
     }
+    async queryCollection(resource, query, maxPages) {
+        return this.useFullPagination(resource, query, [], { maxPages });
+    }
+    async getBusinessPartner(cardCode) {
+        const normalizedCardCode = cardCode.replace(/'/g, "''");
+        return this.send('GET', `/BusinessPartners('${normalizedCardCode}')`);
+    }
     async listCurrencyCodes() {
         const currencies = await this.useFullPagination('/Currencies');
         const codes = currencies

@@ -8,6 +8,11 @@ const form_data_1 = __importDefault(require("form-data"));
 const crypto_1 = require("crypto");
 const AccesstageApi_1 = require("./transport/AccesstageApi");
 const ACCESSTAGE_UPLOAD_HASH_ALGORITHM = 'sha256';
+function getFileNameOnly(fileName) {
+    const normalizedFileName = fileName.trim();
+    const parts = normalizedFileName.split(/[\\/]+/).filter(Boolean);
+    return parts.at(-1) || normalizedFileName || 'arquivo.rem';
+}
 class Accesstage {
     constructor() {
         this.description = {
@@ -285,7 +290,8 @@ class Accesstage {
                 const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
                 const fileBuffer = await this.helpers.getBinaryDataBuffer(i, binaryData);
                 const hash = (0, crypto_1.createHash)(hashAlgorithm).update(fileBuffer).digest('hex');
-                const fileName = (_a = binaryData.fileName) !== null && _a !== void 0 ? _a : 'arquivo.rem';
+                const originalFileName = (_a = binaryData.fileName) !== null && _a !== void 0 ? _a : 'arquivo.rem';
+                const fileName = getFileNameOnly(originalFileName);
                 const mimeType = (_b = binaryData.mimeType) !== null && _b !== void 0 ? _b : 'application/octet-stream';
                 const form = new form_data_1.default();
                 form.append('file', fileBuffer, {

@@ -9,6 +9,7 @@ import {
 } from 'n8n-workflow';
 
 import * as attachments from './actions/attachments';
+import * as cnabSicoob from './actions/cnabSicoob';
 import * as general from './actions/general';
 import * as debug from './actions/debug';
 import * as inclusion from './actions/inclusion';
@@ -71,6 +72,10 @@ export class ERPSAPB1 implements INodeType {
                         value: 'attachments',
                     },
                     {
+                        name: 'CNAB 240 Sicoob',
+                        value: 'cnabSicoob',
+                    },
+                    {
                         name: 'Debug',
                         value: 'debug',
                     },
@@ -99,6 +104,7 @@ export class ERPSAPB1 implements INodeType {
                 description: 'O recurso a ser utilizado pelo conector',
             },
             ...attachments.descriptions,
+            ...cnabSicoob.descriptions,
             ...debug.descriptions,
             ...inclusion.descriptions,
             ...general.descriptions,

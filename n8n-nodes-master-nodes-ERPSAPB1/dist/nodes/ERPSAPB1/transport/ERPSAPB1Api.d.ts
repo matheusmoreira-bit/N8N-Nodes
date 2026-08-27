@@ -42,6 +42,8 @@ export declare class ERPSAPB1Api {
     createPurchaseOrder(document: Partial<IDocument>): Promise<IPurchaseOrder>;
     createJournalEntry(template: Partial<IJournalEntryTemplate>): Promise<ICreatedJournalEntry>;
     createVendorPayment(payload: IVendorPaymentRequest): Promise<IDataObject>;
+    queryCollection(resource: string, query?: IDataObject, maxPages?: number): Promise<IDataObject[]>;
+    getBusinessPartner(cardCode: string): Promise<IDataObject>;
     listCurrencyCodes(): Promise<string[]>;
     createAttachmentFiles(files: IAttachmentUploadFile[]): Promise<IAttachment>;
     createAttachment(fileName: string, attachment: Buffer): Promise<IAttachment>;

@@ -653,6 +653,15 @@ export class ERPSAPB1Api {
         });
     }
 
+    public async queryCollection(resource: string, query?: IDataObject, maxPages?: number): Promise<IDataObject[]> {
+        return this.useFullPagination<IDataObject>(resource, query, [], { maxPages });
+    }
+
+    public async getBusinessPartner(cardCode: string): Promise<IDataObject> {
+        const normalizedCardCode = cardCode.replace(/'/g, "''");
+        return this.send<IDataObject>('GET', `/BusinessPartners('${normalizedCardCode}')`);
+    }
+
     public async listCurrencyCodes(): Promise<string[]> {
         const currencies = await this.useFullPagination<IDataObject>('/Currencies');
 

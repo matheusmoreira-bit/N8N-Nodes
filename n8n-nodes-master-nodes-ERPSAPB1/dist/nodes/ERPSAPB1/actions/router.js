@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.router = router;
 const attachments = __importStar(require("./attachments"));
+const cnabSicoob = __importStar(require("./cnabSicoob"));
 const general = __importStar(require("./general"));
 const debug = __importStar(require("./debug"));
 const inclusion = __importStar(require("./inclusion"));
@@ -54,6 +55,12 @@ async function router(api) {
         try {
             if (erpsapb1.resource === 'attachments') {
                 operationResult.push(...await attachments[erpsapb1.operation].execute.call(this, api, i));
+            }
+            else if (erpsapb1.resource === 'cnabSicoob') {
+                if (erpsapb1.operation === 'generatePaymentRemittance') {
+                    return cnabSicoob.generatePaymentRemittanceExecute.call(this, api);
+                }
+                throw new Error(`Operação '${operation}' não suportada para CNAB 240 Sicoob.`);
             }
             else if (erpsapb1.resource === 'general') {
                 operationResult.push(...await general[erpsapb1.operation].execute.call(this, api, i));

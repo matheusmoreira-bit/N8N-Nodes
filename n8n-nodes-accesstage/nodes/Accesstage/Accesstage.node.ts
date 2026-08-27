@@ -11,6 +11,13 @@ import { AccesstageApiClient, AccesstageApiCredentials } from './transport/Acces
 
 const ACCESSTAGE_UPLOAD_HASH_ALGORITHM = 'sha256';
 
+function getFileNameOnly(fileName: string): string {
+	const normalizedFileName = fileName.trim();
+	const parts = normalizedFileName.split(/[\\/]+/).filter(Boolean);
+
+	return parts.at(-1) || normalizedFileName || 'arquivo.rem';
+}
+
 export class Accesstage implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Accesstage APUS',
@@ -287,7 +294,8 @@ export class Accesstage implements INodeType {
 				const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
 				const fileBuffer = await this.helpers.getBinaryDataBuffer(i, binaryData);
 				const hash = createHash(hashAlgorithm).update(fileBuffer).digest('hex');
-				const fileName = binaryData.fileName ?? 'arquivo.rem';
+				const originalFileName = binaryData.fileName ?? 'arquivo.rem';
+				const fileName = getFileNameOnly(originalFileName);
 				const mimeType = binaryData.mimeType ?? 'application/octet-stream';
 				const form = new FormData();
 

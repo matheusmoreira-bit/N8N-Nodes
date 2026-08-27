@@ -402,6 +402,7 @@ export interface IVendorPaymentInvoiceLine extends IDataObject {
     DocEntry: number;
     SumApplied: number;
     InvoiceType: InvoiceType;
+    InstallmentId?: number;
 }
 
 export interface IVendorPaymentRequest extends IDataObject {
