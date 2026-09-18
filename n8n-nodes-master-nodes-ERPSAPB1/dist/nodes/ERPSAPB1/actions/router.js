@@ -36,12 +36,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.router = router;
 const attachments = __importStar(require("./attachments"));
 const cnabSicoob = __importStar(require("./cnabSicoob"));
+const customer = __importStar(require("./customer"));
+const document = __importStar(require("./document"));
 const general = __importStar(require("./general"));
 const debug = __importStar(require("./debug"));
 const inclusion = __importStar(require("./inclusion"));
 const item = __importStar(require("./item"));
 const serverFiles = __importStar(require("./serverFiles"));
 const supplier = __importStar(require("./supplier"));
+const documentResources = new Set([
+    'accountsPayable',
+    'accountsReceivable',
+    'customerDownPayment',
+    'document',
+    'purchaseInvoice',
+    'purchaseOrder',
+    'salesInvoice',
+    'salesOrder',
+    'supplierDownPayment',
+]);
 async function router(api) {
     const items = this.getInputData();
     const operationResult = [];
@@ -62,6 +75,19 @@ async function router(api) {
                 }
                 throw new Error(`Operação '${operation}' não suportada para CNAB 240 Sicoob.`);
             }
+            else if (erpsapb1.resource === 'customer') {
+                operationResult.push(...await customer[erpsapb1.operation].execute.call(this, api, i));
+                if (erpsapb1.operation === 'list') {
+                    break;
+                }
+            }
+            else if (documentResources.has(erpsapb1.resource)) {
+                const documentOperation = erpsapb1.operation;
+                operationResult.push(...await document[documentOperation].execute.call(this, api, i));
+                if (erpsapb1.operation === 'list') {
+                    break;
+                }
+            }
             else if (erpsapb1.resource === 'general') {
                 operationResult.push(...await general[erpsapb1.operation].execute.call(this, api, i));
             }
@@ -73,6 +99,9 @@ async function router(api) {
             }
             else if (erpsapb1.resource === 'item') {
                 operationResult.push(...await item[erpsapb1.operation].execute.call(this, api, i));
+                if (erpsapb1.operation === 'list') {
+                    break;
+                }
             }
             else if (erpsapb1.resource === 'serverFiles') {
                 operationResult.push(...await serverFiles[erpsapb1.operation].execute.call(this, i));

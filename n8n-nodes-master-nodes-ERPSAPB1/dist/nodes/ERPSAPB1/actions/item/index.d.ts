@@ -1,6 +1,7 @@
 import * as create from './create';
 import * as createGroup from './createGroup';
+import * as list from './list';
 import * as updateField from './updateField';
 import { INodeProperties } from 'n8n-workflow';
-export { create, createGroup, updateField, };
+export { create, createGroup, list, updateField, };
 export declare const descriptions: INodeProperties[];

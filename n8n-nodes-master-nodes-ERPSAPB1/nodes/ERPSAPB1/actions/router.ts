@@ -2,6 +2,8 @@ import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 
 import * as attachments from './attachments';
 import * as cnabSicoob from './cnabSicoob';
+import * as customer from './customer';
+import * as document from './document';
 import * as general from './general';
 import * as debug from './debug';
 import * as inclusion from './inclusion';
@@ -11,6 +13,20 @@ import * as supplier from './supplier';
 import { ERPSAPB1 } from './Interfaces';
 
 import { ERPSAPB1Api } from '../transport/ERPSAPB1Api';
+
+const documentResources = new Set<string>([
+    'accountsPayable',
+    'accountsReceivable',
+    'customerDownPayment',
+    'document',
+    'purchaseInvoice',
+    'purchaseOrder',
+    'salesInvoice',
+    'salesOrder',
+    'supplierDownPayment',
+]);
+
+type DocumentOperation = 'list' | 'create' | 'updateField';
 
 export async function router(this: IExecuteFunctions, api: ERPSAPB1Api): Promise<INodeExecutionData[]> {
     const items = this.getInputData();
@@ -33,6 +49,17 @@ export async function router(this: IExecuteFunctions, api: ERPSAPB1Api): Promise
                     return cnabSicoob.generatePaymentRemittanceExecute.call(this, api);
                 }
                 throw new Error(`Operação '${operation}' não suportada para CNAB 240 Sicoob.`);
+            } else if (erpsapb1.resource === 'customer') {
+                operationResult.push(...await customer[erpsapb1.operation].execute.call(this, api, i));
+                if (erpsapb1.operation === 'list') {
+                    break;
+                }
+            } else if (documentResources.has(erpsapb1.resource)) {
+                const documentOperation = erpsapb1.operation as DocumentOperation;
+                operationResult.push(...await document[documentOperation].execute.call(this, api, i));
+                if (erpsapb1.operation === 'list') {
+                    break;
+                }
             } else if (erpsapb1.resource === 'general') {
                 operationResult.push(...await general[erpsapb1.operation].execute.call(this, api, i));
             } else if (erpsapb1.resource === 'debug') {
@@ -41,6 +68,9 @@ export async function router(this: IExecuteFunctions, api: ERPSAPB1Api): Promise
                 operationResult.push(...await inclusion[erpsapb1.operation].execute.call(this, api, i));
             } else if (erpsapb1.resource === 'item') {
                 operationResult.push(...await item[erpsapb1.operation].execute.call(this, api, i));
+                if (erpsapb1.operation === 'list') {
+                    break;
+                }
             } else if (erpsapb1.resource === 'serverFiles') {
                 operationResult.push(...await serverFiles[erpsapb1.operation].execute.call(this, i));
             } else if (erpsapb1.resource === 'supplier') {

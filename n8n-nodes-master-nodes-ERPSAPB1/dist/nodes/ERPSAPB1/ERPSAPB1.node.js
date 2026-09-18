@@ -36,6 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ERPSAPB1 = void 0;
 const attachments = __importStar(require("./actions/attachments"));
 const cnabSicoob = __importStar(require("./actions/cnabSicoob"));
+const customer = __importStar(require("./actions/customer"));
+const document = __importStar(require("./actions/document"));
 const general = __importStar(require("./actions/general"));
 const debug = __importStar(require("./actions/debug"));
 const inclusion = __importStar(require("./actions/inclusion"));
@@ -70,16 +72,28 @@ class ERPSAPB1 {
                             value: 'attachments',
                         },
                         {
+                            name: 'Adiantamentos a Clientes',
+                            value: 'customerDownPayment',
+                        },
+                        {
+                            name: 'Adiantamentos a Fornecedores',
+                            value: 'supplierDownPayment',
+                        },
+                        {
                             name: 'CNAB 240 Sicoob',
                             value: 'cnabSicoob',
                         },
                         {
-                            name: 'Debug',
-                            value: 'debug',
+                            name: 'Clientes',
+                            value: 'customer',
                         },
                         {
-                            name: 'Inclusão',
-                            value: 'inclusion',
+                            name: 'Contas a Pagar',
+                            value: 'accountsPayable',
+                        },
+                        {
+                            name: 'Contas a Receber',
+                            value: 'accountsReceivable',
                         },
                         {
                             name: 'Configurações',
@@ -94,15 +108,33 @@ class ERPSAPB1 {
                             value: 'item',
                         },
                         {
+                            name: 'Notas Fiscais de Entrada',
+                            value: 'purchaseInvoice',
+                        },
+                        {
+                            name: 'Notas Fiscais de Saida',
+                            value: 'salesInvoice',
+                        },
+                        {
+                            name: 'Pedidos de Compra',
+                            value: 'purchaseOrder',
+                        },
+                        {
+                            name: 'Pedidos de Venda',
+                            value: 'salesOrder',
+                        },
+                        {
                             name: 'Arquivos do Servidor',
                             value: 'serverFiles',
                         },
                     ],
-                    default: 'general',
+                    default: 'customer',
                     description: 'O recurso a ser utilizado pelo conector',
                 },
                 ...attachments.descriptions,
                 ...cnabSicoob.descriptions,
+                ...customer.descriptions,
+                ...document.descriptions,
                 ...debug.descriptions,
                 ...inclusion.descriptions,
                 ...general.descriptions,

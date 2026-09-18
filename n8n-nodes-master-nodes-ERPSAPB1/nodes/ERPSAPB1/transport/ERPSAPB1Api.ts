@@ -12,6 +12,9 @@ import {
     IBlanketAgreement,
     IBlanketAgreementFilters,
     IBlanketAgreementOptions,
+    IBusinessPartner,
+    IBusinessPartnerFilters,
+    IBusinessPartnerOptions,
     ICreatedJournalEntry,
     IBPFiscalTaxID,
     IBPFiscalTaxIDCollection,
@@ -25,6 +28,7 @@ import {
     IDistributionRuleFilters,
     IDistributionRuleOptions,
     IDocument,
+    IDocumentListOptions,
     IItem,
     IItemFilters,
     IItemGroup,
@@ -44,6 +48,7 @@ import {
     IPurchaseOrder,
     IQueryResponse,
     SAPB1DocumentObjectCode,
+    SAPB1ManagedDocumentType,
     ISalesOrder,
     ISAPB1RequestTemplate,
     IVendorPaymentRequest,
@@ -79,6 +84,17 @@ interface IAttachmentUploadSummary extends IDataObject {
     fileName: string;
     size: number;
 }
+
+const SAPB1_DOCUMENT_ENDPOINTS: Record<SAPB1ManagedDocumentType, string> = {
+    purchaseOrder: '/PurchaseOrders',
+    salesOrder: '/Orders',
+    supplierDownPayment: '/PurchaseDownPayments',
+    customerDownPayment: '/DownPayments',
+    purchaseInvoice: '/PurchaseInvoices',
+    salesInvoice: '/Invoices',
+    accountsPayable: '/VendorPayments',
+    accountsReceivable: '/IncomingPayments',
+};
 
 function getFormDataLength(formData: FormData): Promise<number | undefined> {
     return new Promise((resolve) => {
@@ -368,6 +384,10 @@ export class ERPSAPB1Api {
             .join(' and ');
     }
 
+    private static escapeODataString(value: string): string {
+        return value.replace(/'/g, "''");
+    }
+
     private static buildFilterFromMap<T, F extends IDataObject>(
         mapper: T,
         mapperKeys: Array<keyof T>,
@@ -434,15 +454,15 @@ export class ERPSAPB1Api {
         return pickedObject;
     }
 
-    private static pickSupplierFields(
-        supplier: IDataObject,
+    private static pickBusinessPartnerFields(
+        businessPartner: IDataObject,
         selectFields?: string[],
     ): IDataObject {
         if (!selectFields?.length) {
-            return supplier;
+            return businessPartner;
         }
 
-        return ERPSAPB1Api.pickObjectFields(supplier, selectFields);
+        return ERPSAPB1Api.pickObjectFields(businessPartner, selectFields);
     }
 
     private static normalizeODataNextLink(nextLinkValue?: string): string | undefined {
@@ -520,6 +540,85 @@ export class ERPSAPB1Api {
         });
 
         return response.value?.find((item) => item.DocNum === docNum);
+    }
+
+    private static buildDocumentListQuery(filters: IDocumentListOptions, selectFields?: string[]): IDataObject {
+        const oDataFilters: string[] = [];
+
+        if (filters.docEntry !== undefined) {
+            oDataFilters.push(`DocEntry eq ${filters.docEntry}`);
+        }
+
+        if (filters.docNum !== undefined) {
+            oDataFilters.push(`DocNum eq ${filters.docNum}`);
+        }
+
+        if (filters.cardCode) {
+            oDataFilters.push(`CardCode eq '${ERPSAPB1Api.escapeODataString(filters.cardCode)}'`);
+        }
+
+        if (filters.documentStatus) {
+            oDataFilters.push(`DocumentStatus eq '${ERPSAPB1Api.escapeODataString(filters.documentStatus)}'`);
+        }
+
+        if (filters.docDateFrom) {
+            oDataFilters.push(`DocDate ge '${ERPSAPB1Api.escapeODataString(filters.docDateFrom)}'`);
+        }
+
+        if (filters.docDateTo) {
+            oDataFilters.push(`DocDate le '${ERPSAPB1Api.escapeODataString(filters.docDateTo)}'`);
+        }
+
+        if (filters.rawFilter) {
+            oDataFilters.push(`(${filters.rawFilter})`);
+        }
+
+        return {
+            ...(selectFields?.length ? { $select: selectFields.join(',') } : {}),
+            ...(oDataFilters.length ? { $filter: oDataFilters.join(' and ') } : {}),
+            $orderby: 'DocEntry desc',
+        };
+    }
+
+    private static getDocumentEndpoint(documentType: SAPB1ManagedDocumentType): string {
+        return SAPB1_DOCUMENT_ENDPOINTS[documentType];
+    }
+
+    public async listDocuments(
+        documentType: SAPB1ManagedDocumentType,
+        filters: IDocumentListOptions = {},
+        maxPages?: number,
+        selectFields?: string[],
+    ): Promise<IDataObject[]> {
+        return this.useFullPagination<IDataObject>(
+            ERPSAPB1Api.getDocumentEndpoint(documentType),
+            ERPSAPB1Api.buildDocumentListQuery(filters, selectFields),
+            [],
+            { maxPages },
+        );
+    }
+
+    public async createDocument(
+        documentType: SAPB1ManagedDocumentType,
+        payload: IDataObject,
+    ): Promise<IDataObject> {
+        return this.send<IDataObject>('POST', ERPSAPB1Api.getDocumentEndpoint(documentType), {
+            body: payload,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    }
+
+    public async updateDocumentFields(
+        documentType: SAPB1ManagedDocumentType,
+        docEntry: number,
+        payload: IDataObject,
+    ): Promise<void> {
+        await this.patchRaw(
+            `${ERPSAPB1Api.getDocumentEndpoint(documentType)}(${docEntry})`,
+            payload,
+        );
     }
 
     public async listBlanketAgreements(
@@ -753,12 +852,38 @@ export class ERPSAPB1Api {
         );
     }
 
-    public async listSuppliers(filter = '', maxPages?: number, selectFields?: string[]): Promise<IBPFiscalTaxID[]> {
-        const normalizedFilter = filter.length > 0 ? ` and (${filter})` : '';
-        const supplierOptions: IDataObject = ERPSAPB1Api.buildODataTemplate({
-            select: selectFields,
-        });
-        supplierOptions.$filter = `CardType eq 'cSupplier'${normalizedFilter}`;
+    public async listSuppliers(
+        filter: string | IBusinessPartnerOptions = '',
+        maxPages?: number,
+        selectFields?: string[],
+    ): Promise<IBPFiscalTaxID[]> {
+        const supplierOptions: IDataObject = (() => {
+            if (typeof filter === 'string') {
+                const normalizedFilter = filter.length > 0 ? ` and (${filter})` : '';
+                const rawFilterOptions: IDataObject = ERPSAPB1Api.buildODataTemplate({
+                    select: selectFields,
+                });
+                rawFilterOptions.$filter = `CardType eq 'cSupplier'${normalizedFilter}`;
+                return rawFilterOptions;
+            }
+
+            const supplierFilters = ERPSAPB1Api.buildFilterFromMap<IBusinessPartnerOptions, IBusinessPartnerFilters>(
+                filter,
+                ['cardCode', 'cardName', 'document', 'isActive'],
+                ['CardCode', 'CardName', 'FederalTaxID', 'Valid'],
+            );
+            const mappedFilterOptions: IDataObject = ERPSAPB1Api.buildODataTemplate({
+                select: selectFields,
+                filters: supplierFilters,
+                orderBy: 'CardCode asc',
+            });
+
+            mappedFilterOptions.$filter = mappedFilterOptions.$filter
+                ? `CardType eq 'cSupplier' and (${mappedFilterOptions.$filter})`
+                : "CardType eq 'cSupplier'";
+
+            return mappedFilterOptions;
+        })();
 
         const suppliers = await this.useFullPagination<IDataObject>(
             '/BusinessPartners',
@@ -767,7 +892,37 @@ export class ERPSAPB1Api {
             { maxPages },
         );
 
-        return suppliers.map((supplier) => ERPSAPB1Api.pickSupplierFields(supplier, selectFields) as IBPFiscalTaxID);
+        return suppliers.map((supplier) => ERPSAPB1Api.pickBusinessPartnerFields(supplier, selectFields) as IBPFiscalTaxID);
+    }
+
+    public async listCustomers(
+        filters: IBusinessPartnerOptions = {},
+        maxPages?: number,
+        selectFields?: string[],
+    ): Promise<IBusinessPartner[]> {
+        const customerFilters = ERPSAPB1Api.buildFilterFromMap<IBusinessPartnerOptions, IBusinessPartnerFilters>(
+            filters,
+            ['cardCode', 'cardName', 'document', 'isActive'],
+            ['CardCode', 'CardName', 'FederalTaxID', 'Valid'],
+        );
+        const customerOptions: IDataObject = ERPSAPB1Api.buildODataTemplate({
+            select: selectFields,
+            filters: customerFilters,
+            orderBy: 'CardCode asc',
+        });
+
+        customerOptions.$filter = customerOptions.$filter
+            ? `CardType eq 'cCustomer' and (${customerOptions.$filter})`
+            : "CardType eq 'cCustomer'";
+
+        const customers = await this.useFullPagination<IDataObject>(
+            '/BusinessPartners',
+            customerOptions,
+            [],
+            { maxPages },
+        );
+
+        return customers.map((customer) => ERPSAPB1Api.pickBusinessPartnerFields(customer, selectFields) as IBusinessPartner);
     }
 
     public async getSupplierByDocument(document: string): Promise<IBPFiscalTaxID | undefined> {
@@ -796,7 +951,35 @@ export class ERPSAPB1Api {
         };
     }
 
+    public async getCustomerByDocument(document: string): Promise<IBusinessPartner | undefined> {
+        const digits = extractDigitsFromString(document);
+        const documents = [
+            digits,
+            applyDigitMask(digits, '000.000.000-00'),
+            applyDigitMask(digits, '00.000.000/0000-00'),
+        ]
+            .filter((value): value is string => Boolean(value));
+
+        for (const documentValue of documents) {
+            const customers = await this.listCustomers({ document: documentValue }, 1);
+            if (customers[0]) {
+                return customers[0];
+            }
+        }
+
+        return undefined;
+    }
+
     public async createSupplier(payload: IDataObject): Promise<IDataObject> {
+        return this.send<IDataObject>('POST', '/BusinessPartners', {
+            body: payload,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    }
+
+    public async createCustomer(payload: IDataObject): Promise<IDataObject> {
         return this.send<IDataObject>('POST', '/BusinessPartners', {
             body: payload,
             headers: {
@@ -824,6 +1007,14 @@ export class ERPSAPB1Api {
     }
 
     public async updateSupplierField(cardCode: string, fieldName: string, fieldValue: unknown): Promise<void> {
+        await this.updateBusinessPartnerField(cardCode, fieldName, fieldValue);
+    }
+
+    public async updateCustomerField(cardCode: string, fieldName: string, fieldValue: unknown): Promise<void> {
+        await this.updateBusinessPartnerField(cardCode, fieldName, fieldValue);
+    }
+
+    private async updateBusinessPartnerField(cardCode: string, fieldName: string, fieldValue: unknown): Promise<void> {
         const normalizedCardCode = cardCode.replace(/'/g, "''");
         await this.patchRaw(
             `/BusinessPartners('${normalizedCardCode}')`,
@@ -848,6 +1039,14 @@ export class ERPSAPB1Api {
     }
 
     public async generateNextSupplierCardCode(prefix = 'F', digits = 6): Promise<string> {
+        return this.generateNextBusinessPartnerCardCode('cSupplier', prefix, digits);
+    }
+
+    public async generateNextCustomerCardCode(prefix = 'C', digits = 6): Promise<string> {
+        return this.generateNextBusinessPartnerCardCode('cCustomer', prefix, digits);
+    }
+
+    private async generateNextBusinessPartnerCardCode(cardType: string, prefix: string, digits: number): Promise<string> {
         const parseSequence = (value: string): number | undefined => {
             const matcher = new RegExp(`^${prefix}(\\d{${digits},})$`).exec(value);
             if (!matcher) {
@@ -863,7 +1062,7 @@ export class ERPSAPB1Api {
             const latestSupplier = await this.send<IQueryResponse<IDataObject>>('GET', '/BusinessPartners', {
                 qs: {
                     $select: 'CardCode',
-                    $filter: `CardType eq 'cSupplier' and startswith(CardCode,'${prefix}')`,
+                    $filter: `CardType eq '${cardType}' and startswith(CardCode,'${prefix}')`,
                     $orderby: 'CardCode desc',
                     $top: 1,
                 },
@@ -879,7 +1078,7 @@ export class ERPSAPB1Api {
         } catch {
             const allSuppliers = await this.useFullPagination<IDataObject>('/BusinessPartners', {
                 $select: 'CardCode',
-                $filter: `CardType eq 'cSupplier'`,
+                $filter: `CardType eq '${cardType}'`,
             });
 
             const sequences = allSuppliers

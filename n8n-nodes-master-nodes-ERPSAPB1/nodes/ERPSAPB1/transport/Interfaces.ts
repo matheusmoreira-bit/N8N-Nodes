@@ -63,6 +63,26 @@ export interface IDocumentTemplate extends IDataObject {
     Document: IDocument;
 }
 
+export type SAPB1ManagedDocumentType =
+    | 'purchaseOrder'
+    | 'salesOrder'
+    | 'supplierDownPayment'
+    | 'customerDownPayment'
+    | 'purchaseInvoice'
+    | 'salesInvoice'
+    | 'accountsPayable'
+    | 'accountsReceivable';
+
+export interface IDocumentListOptions {
+    docEntry?: number;
+    docNum?: number;
+    cardCode?: string;
+    documentStatus?: string;
+    docDateFrom?: string;
+    docDateTo?: string;
+    rawFilter?: string;
+}
+
 export interface IPurchaseDownPayment extends IDocument {
     DocEntry: number;
     DocNum: number;
@@ -215,6 +235,27 @@ export interface ISAPB1SupplierOptions {
     useSupplierMapper: boolean;
     employeeId?: number;
     supplierDocument?: string;
+}
+
+export interface IBusinessPartner extends IDataObject {
+    CardCode: string;
+    CardName: string;
+    CardType: string;
+    FederalTaxID?: string;
+}
+
+export interface IBusinessPartnerOptions {
+    cardCode?: string;
+    cardName?: string;
+    document?: string;
+    isActive?: boolean;
+}
+
+export interface IBusinessPartnerFilters extends IDataObject {
+    CardCode?: string;
+    CardName?: string;
+    FederalTaxID?: string;
+    Valid?: boolean;
 }
 
 export interface IItem extends IDataObject {

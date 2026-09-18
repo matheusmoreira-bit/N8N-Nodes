@@ -1,0 +1,48 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.itemListDescription = void 0;
+exports.itemListDescription = [
+    {
+        displayName: 'Filtros',
+        name: 'filters',
+        type: 'collection',
+        placeholder: 'Adicionar filtro',
+        default: {},
+        options: [
+            {
+                displayName: 'Código',
+                name: 'code',
+                type: 'string',
+                default: '',
+            },
+            {
+                displayName: 'Nome',
+                name: 'name',
+                type: 'string',
+                default: '',
+            },
+            {
+                displayName: 'Válido',
+                name: 'isValid',
+                type: 'boolean',
+                default: true,
+            },
+            {
+                displayName: 'Código do Grupo',
+                name: 'groupCode',
+                type: 'number',
+                default: 1,
+            },
+        ],
+        displayOptions: {
+            show: {
+                resource: [
+                    'item',
+                ],
+                operation: [
+                    'list',
+                ],
+            },
+        },
+    },
+];

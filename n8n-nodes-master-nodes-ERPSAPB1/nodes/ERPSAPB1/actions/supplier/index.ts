@@ -29,6 +29,11 @@ export const descriptions: INodeProperties[] = [
         },
         options: [
             {
+                name: 'Listar fornecedores',
+                value: 'list',
+                description: 'Lista todos os fornecedores cadastrados no SAP.',
+            },
+            {
                 name: 'Criar fornecedor',
                 value: 'create',
                 description: 'Cria um novo fornecedor no SAP.',
@@ -47,11 +52,6 @@ export const descriptions: INodeProperties[] = [
                 name: 'Obter fornecedor por documento',
                 value: 'getByDocument',
                 description: 'Obtém um colaborador por CPF ou CNPJ.',
-            },
-            {
-                name: 'Listar fornecedores',
-                value: 'list',
-                description: 'Lista todos os fornecedores cadastrados no SAP.',
             },
         ],
         default: 'list',

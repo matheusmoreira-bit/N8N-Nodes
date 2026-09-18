@@ -10,6 +10,8 @@ import {
 
 import * as attachments from './actions/attachments';
 import * as cnabSicoob from './actions/cnabSicoob';
+import * as customer from './actions/customer';
+import * as document from './actions/document';
 import * as general from './actions/general';
 import * as debug from './actions/debug';
 import * as inclusion from './actions/inclusion';
@@ -72,16 +74,28 @@ export class ERPSAPB1 implements INodeType {
                         value: 'attachments',
                     },
                     {
+                        name: 'Adiantamentos a Clientes',
+                        value: 'customerDownPayment',
+                    },
+                    {
+                        name: 'Adiantamentos a Fornecedores',
+                        value: 'supplierDownPayment',
+                    },
+                    {
                         name: 'CNAB 240 Sicoob',
                         value: 'cnabSicoob',
                     },
                     {
-                        name: 'Debug',
-                        value: 'debug',
+                        name: 'Clientes',
+                        value: 'customer',
                     },
                     {
-                        name: 'Inclusão',
-                        value: 'inclusion',
+                        name: 'Contas a Pagar',
+                        value: 'accountsPayable',
+                    },
+                    {
+                        name: 'Contas a Receber',
+                        value: 'accountsReceivable',
                     },
                     {
                         name: 'Configurações',
@@ -96,15 +110,33 @@ export class ERPSAPB1 implements INodeType {
                         value: 'item',
                     },
                     {
+                        name: 'Notas Fiscais de Entrada',
+                        value: 'purchaseInvoice',
+                    },
+                    {
+                        name: 'Notas Fiscais de Saida',
+                        value: 'salesInvoice',
+                    },
+                    {
+                        name: 'Pedidos de Compra',
+                        value: 'purchaseOrder',
+                    },
+                    {
+                        name: 'Pedidos de Venda',
+                        value: 'salesOrder',
+                    },
+                    {
                         name: 'Arquivos do Servidor',
                         value: 'serverFiles',
                     },
                 ],
-                default: 'general',
+                default: 'customer',
                 description: 'O recurso a ser utilizado pelo conector',
             },
             ...attachments.descriptions,
             ...cnabSicoob.descriptions,
+            ...customer.descriptions,
+            ...document.descriptions,
             ...debug.descriptions,
             ...inclusion.descriptions,
             ...general.descriptions,
